@@ -7,7 +7,7 @@
 3. Заполните форму:
    - **Repository name**: `tg-cafe-bot` (или любое другое название)
    - **Description**: "Telegram bot for cafe orders with YTimes integration"
-   - **Visibility**: 
+   - **Visibility**:
      - ✅ **Private** (рекомендуется, если код содержит секреты)
      - или **Public** (если хотите открытый репозиторий)
    - ❌ **НЕ** ставьте галочки на "Add a README file", "Add .gitignore", "Choose a license" (у нас уже есть файлы)
@@ -43,6 +43,7 @@ git remote -v
 ```
 
 Должно показать:
+
 ```
 origin  https://github.com/YOUR_USERNAME/tg-cafe-bot.git (fetch)
 origin  https://github.com/YOUR_USERNAME/tg-cafe-bot.git (push)
@@ -82,4 +83,3 @@ git remote add origin https://github.com/YOUR_USERNAME/REPO_NAME.git
 # Отправьте код
 git push -u origin main
 ```
-
