@@ -1,0 +1,27 @@
+# Web (FastAPI + SPA) и бот (Telegram long polling). Один образ, общий .env.
+# Запуск: docker compose up -d
+# Остановка: docker compose down
+# Перед первым запуском: скопируйте example.env в .env и заполните переменные (в т.ч. WEBAPP_URL=https://ваш-домен).
+
+services:
+  web:
+    build: .
+    image: tgzakaz-app
+    ports:
+      - "8000:8000"
+    env_file: .env
+    restart: unless-stopped
+
+  bot:
+    image: tgzakaz-app
+    build: .
+    env_file: .env
+    volumes:
+      - tgzakaz_data:/app/data
+    command: ["python", "src/bot/bot.py"]
+    restart: unless-stopped
+    depends_on:
+      - web
+
+volumes:
+  tgzakaz_data:

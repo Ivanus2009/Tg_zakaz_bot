@@ -1,0 +1,531 @@
+{
+  "shops": [
+    {
+      "guid": "bdd03b7e-4fd9-4081-bfc0-959229d79044",
+      "name": "Первая точка",
+      "type": "SHOP",
+      "city_name": null
+    }
+  ],
+  "menu_groups": [
+    {
+      "guid": "fce11cde-00f4-4af2-a92c-14ea85bf9c28",
+      "name": "Меню ( онлайн заказы )",
+      "priority": 47,
+      "imageLink": null,
+      "groupList": [],
+      "itemList": [
+        {
+          "guid": "837fb2ff-163e-4e33-82e6-687382a92863",
+          "name": "Капучино/ латте",
+          "priority": 15001,
+          "imageLink": null,
+          "description": null,
+          "recipe": null,
+          "menuType": "RECIPE",
+          "recipeTypeList": [
+            {
+              "guid": "aed302ab-2d22-4671-b58d-60ff5d0dccfa",
+              "name": "200 мл.",
+              "price": 230.0,
+              "canApplyDiscount": true,
+              "orderType": "TOGO"
+            },
+            {
+              "guid": "e92e8f9d-6252-41e8-9c78-5b7457241585",
+              "name": "300 мл.",
+              "price": 260.0,
+              "canApplyDiscount": true,
+              "orderType": "TOGO"
+            },
+            {
+              "guid": "aad90f59-6a1e-4bff-ac1f-6eb555da8660",
+              "name": "400 мл.",
+              "price": 280.0,
+              "canApplyDiscount": true,
+              "orderType": "TOGO"
+            }
+          ],
+          "supplementCategoryToFreeCount": {},
+          "defaultSupplements": [],
+          "price": null,
+          "canApplyDiscount": false
+        },
+        {
+          "guid": "44bf47ea-6439-4284-bd0b-fc0ed447d6a1",
+          "name": "Круассан Классический, 60 гр.",
+          "priority": 20001,
+          "imageLink": null,
+          "description": null,
+          "recipe": null,
+          "menuType": "GOODS",
+          "recipeTypeList": null,
+          "supplementCategoryToFreeCount": null,
+          "defaultSupplements": null,
+          "price": 130.0,
+          "canApplyDiscount": true
+        },
+        {
+          "guid": "a9f9498d-adb6-4a78-9139-3431e56fbc81",
+          "name": "Круассан С абрикосом,95 гр.",
+          "priority": 20001,
+          "imageLink": null,
+          "description": null,
+          "recipe": null,
+          "menuType": "GOODS",
+          "recipeTypeList": null,
+          "supplementCategoryToFreeCount": null,
+          "defaultSupplements": null,
+          "price": 160.0,
+          "canApplyDiscount": true
+        },
+        {
+          "guid": "6836b13d-eb4e-4925-8ccb-4dcb9ccde321",
+          "name": "Круассан с ветчиной и сыром,105 гр.",
+          "priority": 20001,
+          "imageLink": null,
+          "description": null,
+          "recipe": null,
+          "menuType": "GOODS",
+          "recipeTypeList": null,
+          "supplementCategoryToFreeCount": null,
+          "defaultSupplements": null,
+          "price": 160.0,
+          "canApplyDiscount": true
+        },
+        {
+          "guid": "92d098f4-5b18-4053-a9b3-2407423a2458",
+          "name": "Латте клубника/ банан",
+          "priority": 15001,
+          "imageLink": null,
+          "description": null,
+          "recipe": null,
+          "menuType": "RECIPE",
+          "recipeTypeList": [
+            {
+              "guid": "9d8896f5-a67f-4315-829c-b599d73b94f1",
+              "name": "300 мл.",
+              "price": 300.0,
+              "canApplyDiscount": true,
+              "orderType": "TOGO"
+            },
+            {
+              "guid": "759fb9c7-552a-4f9a-9ad4-7d898c81da08",
+              "name": "400 мл.",
+              "price": 330.0,
+              "canApplyDiscount": true,
+              "orderType": "TOGO"
+            }
+          ],
+          "supplementCategoryToFreeCount": {},
+          "defaultSupplements": [],
+          "price": null,
+          "canApplyDiscount": false
+        },
+        {
+          "guid": "b3c2e264-0d57-442b-9985-f6fbd44dfef7",
+          "name": "Молоко альтернативное",
+          "priority": 20001,
+          "imageLink": null,
+          "description": null,
+          "recipe": null,
+          "menuType": "GOODS",
+          "recipeTypeList": null,
+          "supplementCategoryToFreeCount": null,
+          "defaultSupplements": null,
+          "price": 80.0,
+          "canApplyDiscount": true
+        },
+        {
+          "guid": "19b54594-4d98-43f9-a919-003516a79397",
+          "name": "Сироп общий",
+          "priority": 20001,
+          "imageLink": null,
+          "description": null,
+          "recipe": null,
+          "menuType": "GOODS",
+          "recipeTypeList": null,
+          "supplementCategoryToFreeCount": null,
+          "defaultSupplements": null,
+          "price": 30.0,
+          "canApplyDiscount": true
+        }
+      ]
+    }
+  ],
+  "menu_items": [
+    {
+      "guid": "fce11cde-00f4-4af2-a92c-14ea85bf9c28",
+      "name": "Меню ( онлайн заказы )",
+      "priority": 47,
+      "imageLink": null,
+      "categoryList": [],
+      "itemList": [
+        {
+          "guid": "837fb2ff-163e-4e33-82e6-687382a92863",
+          "name": "Капучино/ латте",
+          "priority": 15001,
+          "imageLink": null,
+          "description": null,
+          "recipe": null,
+          "typeList": [
+            {
+              "guid": "aed302ab-2d22-4671-b58d-60ff5d0dccfa",
+              "name": "200 мл.",
+              "price": 230.0,
+              "isTogo": true
+            },
+            {
+              "guid": "e92e8f9d-6252-41e8-9c78-5b7457241585",
+              "name": "300 мл.",
+              "price": 260.0,
+              "isTogo": true
+            },
+            {
+              "guid": "aad90f59-6a1e-4bff-ac1f-6eb555da8660",
+              "name": "400 мл.",
+              "price": 280.0,
+              "isTogo": true
+            }
+          ],
+          "supplementCategoryToFreeCount": {},
+          "defaultSupplements": []
+        },
+        {
+          "guid": "92d098f4-5b18-4053-a9b3-2407423a2458",
+          "name": "Латте клубника/ банан",
+          "priority": 15001,
+          "imageLink": null,
+          "description": null,
+          "recipe": null,
+          "typeList": [
+            {
+              "guid": "9d8896f5-a67f-4315-829c-b599d73b94f1",
+              "name": "300 мл.",
+              "price": 300.0,
+              "isTogo": true
+            },
+            {
+              "guid": "759fb9c7-552a-4f9a-9ad4-7d898c81da08",
+              "name": "400 мл.",
+              "price": 330.0,
+              "isTogo": true
+            }
+          ],
+          "supplementCategoryToFreeCount": {},
+          "defaultSupplements": []
+        }
+      ],
+      "goodsList": [
+        {
+          "guid": "19b54594-4d98-43f9-a919-003516a79397",
+          "name": "Сироп общий",
+          "priority": 20001,
+          "price": 30.0,
+          "imageLink": null,
+          "description": null,
+          "recipe": null
+        },
+        {
+          "guid": "b3c2e264-0d57-442b-9985-f6fbd44dfef7",
+          "name": "Молоко альтернативное",
+          "priority": 20001,
+          "price": 80.0,
+          "imageLink": null,
+          "description": null,
+          "recipe": null
+        },
+        {
+          "guid": "44bf47ea-6439-4284-bd0b-fc0ed447d6a1",
+          "name": "Круассан Классический, 60 гр.",
+          "priority": 20001,
+          "price": 130.0,
+          "imageLink": null,
+          "description": null,
+          "recipe": null
+        },
+        {
+          "guid": "a9f9498d-adb6-4a78-9139-3431e56fbc81",
+          "name": "Круассан С абрикосом,95 гр.",
+          "priority": 20001,
+          "price": 160.0,
+          "imageLink": null,
+          "description": null,
+          "recipe": null
+        },
+        {
+          "guid": "6836b13d-eb4e-4925-8ccb-4dcb9ccde321",
+          "name": "Круассан с ветчиной и сыром,105 гр.",
+          "priority": 20001,
+          "price": 160.0,
+          "imageLink": null,
+          "description": null,
+          "recipe": null
+        }
+      ],
+      "comboList": null
+    }
+  ],
+  "supplements": [
+    {
+      "guid": "46796e9a-c2b7-4e1f-87ac-3bc42974cf30",
+      "name": "Сиропы",
+      "priority": 0,
+      "allowSeveralItem": false,
+      "maxSelectedCount": 3,
+      "itemList": [
+        {
+          "guid": "2739c81d-0eb9-4afe-949e-d71daf45b7b6",
+          "name": "Сироп общий",
+          "priority": 1,
+          "defaultPrice": 30.0,
+          "defaultTogoPrice": 30.0,
+          "menuTypeToPrice": null
+        }
+      ]
+    },
+    {
+      "guid": "1805df92-927c-4a3a-9853-d3c4a9467c0b",
+      "name": "Альтернативное молоко",
+      "priority": 3,
+      "allowSeveralItem": false,
+      "maxSelectedCount": 1,
+      "itemList": [
+        {
+          "guid": "7857c828-109a-4d4f-9c58-dd36c219d19f",
+          "name": "Альтернативное молоко",
+          "priority": 1,
+          "defaultPrice": 0.0,
+          "defaultTogoPrice": 0.0,
+          "menuTypeToPrice": {
+            "fe2a42da-848a-428f-9802-8a2fe8b43746": 80.0,
+            "349743fe-aac2-4f40-b3e4-fbc0a0dbd82d": 100.0,
+            "6c5744ad-0996-415a-86f4-5e05f3be7211": 80.0,
+            "adddde45-03e3-4ec1-b6a5-c5aa7a33749d": 100.0,
+            "4975aaf9-0e33-4c0e-823d-10d42b5abf9d": 100.0,
+            "7de7f49e-2a9a-4a0d-af94-fa5049565639": 100.0,
+            "369ebb87-0102-48b8-9745-bea947cd25f4": 100.0,
+            "6d0c4146-02c9-46f5-8397-37075647df24": 80.0,
+            "f2a4a53e-db4b-4259-bf13-6c4f6e05cd0f": 100.0,
+            "de0cbd0a-83d9-487a-8967-3b439091d682": 100.0,
+            "6ebbb0dc-216f-4080-8713-829b066dbefc": 80.0,
+            "e0ac4170-45be-4adf-91c4-b89f8fdb241f": 80.0,
+            "6edcd1dd-5af8-4369-9e97-1464602605a7": 100.0,
+            "392de548-96d3-4cd6-8a0b-3eb2e2f34ad1": 80.0,
+            "7afe2804-a6de-4011-992c-786fb44b432a": 80.0,
+            "5c5767f0-6cbe-4a62-abe8-53b374c90ead": 80.0,
+            "568090a6-4d04-4769-aab5-51f565db606c": 80.0,
+            "508d3868-4e1f-48fd-aa32-cab70350f6af": 100.0,
+            "759fb9c7-552a-4f9a-9ad4-7d898c81da08": 100.0,
+            "54dbdf0c-7511-4825-9e87-e43a86e42190": 80.0,
+            "bcb00903-78f7-4e8e-8403-9408494f90e4": 80.0,
+            "7d2df00a-3ec1-4803-9f38-49c0fe139206": 80.0,
+            "d0ca851f-07e3-466f-9d26-01517abbdc57": 80.0,
+            "e0badd16-a404-46e0-a047-969855ae44c3": 100.0,
+            "85941c75-3e8a-412c-b654-c653092339a2": 100.0,
+            "c0576a2d-d354-4ba0-a351-ca18214509fb": 100.0,
+            "e30a0e42-a1fe-443f-84e8-a2851fcfaf47": 100.0,
+            "6d44887a-3588-4f21-a7ff-0cf86801898f": 100.0,
+            "c4bc92d7-d278-4e14-a7f1-ece357e5add7": 80.0,
+            "af7d21f8-f736-4a8a-bb91-728085938269": 100.0,
+            "092d83be-4c97-4299-94cc-746649e45880": 80.0,
+            "7d6ce93f-8909-4ee0-bdce-80647891f8d3": 80.0,
+            "c49e5bc1-c54a-4ce5-96b3-b5015f0a4af5": 100.0,
+            "0d967330-bfb3-4e7d-beb8-e3132fdc8a92": 80.0,
+            "2415ba8a-784b-4825-8107-7aa49feda7dc": 80.0,
+            "c9ea81f2-7979-48f8-8c45-f069fd4e72b2": 100.0,
+            "f4c154e9-7f52-4faf-9c56-a8b04d97b497": 80.0,
+            "3f5e581f-0f43-4a34-8eff-71a8fd5b03bf": 80.0,
+            "b652f533-420c-4444-9ceb-98d44e224cbf": 100.0,
+            "a69e5839-d9b6-4861-8780-56b3b1c4277d": 100.0,
+            "16c98f6f-6cab-4ba5-b319-2ea0baee70a7": 80.0,
+            "4bfde2c5-3759-43be-a9d9-413461481b26": 100.0,
+            "31cc1428-d58e-4c59-a951-824395581ff2": 100.0,
+            "4f8ff31a-9c48-4b7a-9687-4645513a25fe": 80.0,
+            "5fcbe2e1-3f37-4d2a-bff4-d243170bdaa4": 80.0,
+            "7cb70753-8195-4058-b5b4-10299532bf99": 100.0,
+            "137d0c1e-a807-4644-9f39-6bf2932bca2a": 100.0,
+            "6c654ed9-1dc5-422b-84dc-ba2ca27a51a8": 80.0,
+            "548eb81e-fa56-416c-92f0-8e34983644c2": 80.0,
+            "811d669d-f24f-42b0-b263-b3921f735f5e": 80.0,
+            "c6e1aa0f-f3bc-4d1b-aadc-4ea6a452b23d": 80.0,
+            "074df630-5c4d-4f8d-afd1-d12e3a59a9b1": 80.0,
+            "150b1814-756e-4665-9e09-e7a3eda8d6a7": 80.0,
+            "5c46b212-3163-4e77-a726-58e1d611403a": 100.0,
+            "9c402fbc-7e35-41f0-bfbc-29e7644f5cb5": 80.0,
+            "29f38f7e-2142-43f5-b51f-4dd0466c5f80": 80.0,
+            "30273254-9a9a-454a-8782-647f4c03c97d": 80.0,
+            "4d7ba88e-fc02-46d4-8fd0-24313c705bf1": 80.0,
+            "8053732b-4aad-44aa-aff5-85bc377f88f7": 100.0,
+            "40dc3e92-6726-4598-8be6-883d0305556d": 100.0,
+            "182bd9c8-9c6d-4ab6-a6e3-83ed587daaa3": 100.0,
+            "d4661405-05b5-4e74-96ab-c55348ecd684": 80.0,
+            "e78c0b6b-061e-462a-9abc-083837dc18d7": 100.0,
+            "bb345352-1c02-448b-9296-a03681a38827": 100.0,
+            "8a232cc2-f4f9-431b-953c-194add6403af": 80.0,
+            "aed302ab-2d22-4671-b58d-60ff5d0dccfa": 80.0,
+            "fb6416f6-e4da-4c94-8cc1-4a93e1cf5aef": 100.0,
+            "e1d3e3aa-084d-4809-859f-c664547b46ef": 80.0,
+            "fe4940be-3c28-4785-8d12-f0ee7d8d2a16": 100.0,
+            "29b8c53c-499f-4c9b-9bb3-a9da3cd4f5c8": 100.0,
+            "41086e11-5f68-4a1f-88e1-989ca0d14324": 100.0,
+            "84bf4bdf-54b0-4519-bea8-22a10db1db9f": 80.0,
+            "4dc3d959-e8a1-4237-86d5-b83c85edbe5b": 100.0,
+            "4f87df74-c4a9-4634-8a0e-a7472eabf445": 100.0,
+            "edf4f637-84a5-4731-901f-3604c64f6374": 100.0,
+            "b05f5fe3-8259-4c2c-9a1b-cfd6986730ca": 80.0,
+            "13e417ee-46f9-4f66-897d-74b5fcafc1da": 100.0,
+            "ef082b11-3be5-416a-abd2-ddd506ca59ce": 80.0,
+            "e26d4433-aaae-4619-ac9e-b11db6d4cff2": 100.0,
+            "82760423-aa16-4427-8ec1-50a4c521bb8a": 80.0,
+            "18853a88-a615-432d-ba0a-693123862d2e": 100.0,
+            "bf402974-a865-417d-8802-a2762a38cf56": 80.0,
+            "c3918394-5eb5-4f4b-af30-5622ebd2edb7": 80.0,
+            "d5532fd9-95d2-453c-a26f-a171fe15c3ba": 100.0,
+            "61598289-6a7d-4f65-8fdd-782907a85fa8": 80.0,
+            "1cc3ff93-2267-4c56-98f9-5c4f0d1478bf": 100.0,
+            "34d7a14d-c12b-4bed-81df-8eb8dd89d8ee": 80.0,
+            "28cc7574-46ad-4522-b347-d4e9afa298f0": 80.0,
+            "f6f34ee4-4402-4015-8ecd-dd239bf97fb5": 100.0,
+            "d1acf304-cea6-42b6-9cdc-4dda7fd6b476": 100.0,
+            "c4d8a8fc-9554-41df-9900-53fb8905d98f": 80.0,
+            "51cb5f8b-df72-4eb2-885f-dc863ca74295": 80.0,
+            "aad90f59-6a1e-4bff-ac1f-6eb555da8660": 100.0,
+            "40dbd919-5038-459b-932b-d097645ef778": 80.0,
+            "8e4e98c7-0af1-4fd4-a262-444f78d797e3": 80.0,
+            "51784131-1496-4519-9fdb-6ae098954e0b": 80.0,
+            "3d65512e-3d8a-448a-a6bf-d9820d7e0b14": 100.0,
+            "a41fa075-4725-4be4-a31f-9ff67dd00d20": 100.0,
+            "c821d815-794e-4208-a1d2-24f5afe3a618": 80.0,
+            "835d15cb-44fb-4cf5-a380-3743e381d643": 80.0,
+            "75a15c97-35d7-460c-b66f-51e06b4e2f61": 100.0,
+            "1cd35573-dac5-4089-b3c6-5cbb23aff588": 80.0,
+            "e7aa8da4-655a-4848-84b6-20494f220b1f": 100.0,
+            "97a708cb-a19d-4f7a-8d29-c54e2598e130": 80.0,
+            "a26a1b69-af19-4ad9-a2e8-f593b8ae95f2": 100.0,
+            "d324d77e-d510-45f4-bf88-2b5ec962dd13": 100.0,
+            "6474c4a4-f62c-40ff-9855-0b3344858894": 100.0,
+            "76a1a760-d7fe-4282-aff0-bcb37a4b7de8": 100.0,
+            "48649d1d-b863-42ca-a328-1cd6114dd22a": 80.0,
+            "5cdaa5e7-45e2-4277-85b2-eec470b00bb4": 80.0,
+            "15be4691-f1e5-4989-9196-5b9c26adaaa9": 100.0,
+            "b52712dc-4075-443a-93ad-a0de10f8f56d": 100.0,
+            "7e8689f2-1b76-4b75-b58f-374c0dd5ebd9": 80.0,
+            "5815d41a-94ca-41c2-a92c-38aa5b233107": 80.0,
+            "9ed6a52f-0309-430c-8031-8591c6ec2dc2": 100.0,
+            "fc468593-8b6d-4a3c-85c4-03625a283550": 80.0,
+            "700dc789-65fe-408b-bb59-8f529e7fbbb6": 100.0,
+            "03c916dd-c3a3-496d-9276-1364b7b95542": 100.0,
+            "1160ac3f-f7d6-46ee-aa67-8b060b5937fd": 80.0,
+            "c3f9f7ff-015c-411b-85a3-2f2a916e7f97": 100.0,
+            "77b1bab2-ec90-45b9-9788-6c6e49c09118": 80.0,
+            "e42612b2-0a92-4561-8046-088dcfafa21c": 80.0,
+            "6cc53ce0-f2ee-487b-81ba-90029d7b2eaa": 100.0,
+            "9d8896f5-a67f-4315-829c-b599d73b94f1": 80.0,
+            "f4f7764c-6fe1-4c29-a79d-fcb975e5fe58": 80.0,
+            "8ddba041-7c50-42f3-be53-86a922c037ce": 80.0,
+            "01e0f898-251b-4fa8-b5ea-15bce2b23cbb": 100.0,
+            "c561719c-abc0-4812-8b65-b971b547fe69": 80.0,
+            "f7ea9583-4a1f-48e7-99a0-d7acd8a61602": 80.0,
+            "4ab2cc56-6d79-49bc-ac01-51528c3d0c56": 100.0,
+            "8fc6389c-93e5-43ae-ba3a-8fa3b3ad0974": 80.0,
+            "cf390128-5982-49cc-b4f2-86b897ed93a6": 100.0,
+            "ffe90580-df9a-4486-a2a4-56a7d0d6d75d": 100.0,
+            "a7204e09-f34d-48dc-bb95-0d5bf039583b": 100.0,
+            "69723c79-696f-4796-b119-8b0ffaae4860": 80.0,
+            "bc4e7ffb-adc6-4ac2-9ded-c2a0488c20db": 80.0,
+            "75cbfba0-9c03-49e8-b814-365fbe1c2eb3": 80.0,
+            "a08c42f3-98ee-4b98-8a28-6cfed503fdf2": 100.0,
+            "c205937b-3806-4a56-a641-fe60b0a3bc69": 80.0,
+            "5db2d2eb-7ff4-4416-bdd1-3eb18ac67445": 100.0,
+            "46262603-ef93-46b2-9ad0-1668a73d6ee5": 100.0,
+            "c983d3ab-3139-436f-96b7-5f91f26c1501": 80.0,
+            "1450e9bd-b32c-48e5-a86d-779c6253e3ed": 100.0,
+            "badd5e76-b8bf-4573-9026-16cd370cfa66": 80.0,
+            "e3ea15e4-265a-48bc-ba96-ca9b9d5f24af": 100.0,
+            "ad7bc57e-7e64-46db-aaeb-02b8005b044d": 100.0,
+            "8bd6ec55-883d-442f-85fe-4c2d9403de35": 80.0,
+            "e92e8f9d-6252-41e8-9c78-5b7457241585": 80.0,
+            "5c74bdff-d5d0-44fc-bc75-a2a9aab1e2a2": 80.0,
+            "99c4e5f6-fd3b-4745-8c04-0f3c52b165bf": 80.0,
+            "af9f1f25-cba6-48f8-9d94-2931874a6e10": 100.0,
+            "7ba3ac5f-9f82-4cf0-82ae-eeb42c8c8a41": 100.0,
+            "e145d3fa-c7c7-46f0-b3c2-6e358eaa3c19": 100.0,
+            "8925592a-2163-4057-93e5-31279d8a874b": 100.0,
+            "b7e634eb-a8b4-416a-9af3-f68bb7f90e07": 100.0,
+            "2a9d7707-f9bb-4483-a00d-eb59c743a004": 100.0,
+            "f2944257-644b-4a34-8223-f13f12675855": 80.0,
+            "15f8e22d-6631-4fe5-bf4d-63fce07c2b86": 80.0,
+            "7f6987d5-22bb-4250-9c66-4a3457538d5f": 100.0,
+            "29cd5310-1b08-4a72-9425-b6e04668c9c1": 100.0,
+            "5b2a3076-b850-42ab-b4e7-4f04bcbb42f7": 80.0,
+            "2b202fea-be74-4568-bd7f-8bd729acae70": 100.0,
+            "b9fe3cc0-0e4e-452c-9764-04578b243a35": 100.0,
+            "eeddeee0-60d5-4f0a-9cb8-e599cabe98bf": 80.0,
+            "448447f6-7bea-4a4d-951e-0105757a4c78": 100.0,
+            "7743d834-77d7-4563-a246-7c4909d89c78": 100.0,
+            "e31893f1-1cb9-4e05-9d27-39039cada193": 80.0,
+            "068f58a6-2f7f-43a4-8b6e-16b1f439677b": 80.0,
+            "9be2e5b2-3a67-4396-ae45-dcd01708a3c2": 100.0,
+            "6ad27241-ffa7-4106-85ef-c0893a5501e8": 100.0,
+            "01dfcb15-ce8d-4b85-a264-cc4605328037": 100.0,
+            "a97fa86e-6f69-44bb-91d3-a529049bf01d": 100.0,
+            "e01d00fa-0f5f-44d6-947e-b706741ecf6d": 80.0,
+            "d0cbe1d7-6e43-444f-b972-02ab0e22038e": 80.0,
+            "688f2af4-5a6d-4a5b-9d4c-e9170253af48": 100.0,
+            "0bfa2d42-cbc4-4d23-82bf-fefa60cd26ad": 100.0,
+            "aa33995f-5db7-4dec-a67c-5f48b87509e1": 100.0,
+            "4dbcd004-b0b0-425f-b7b6-d4b52c021d73": 100.0,
+            "e42576df-76bb-44d6-91ee-2a801815d2c1": 80.0,
+            "30914a24-1166-4676-98d4-367444a1252d": 80.0,
+            "534320b1-786a-44a2-9c4c-0f56dd5671d6": 100.0,
+            "1886253f-32e2-4b01-b5a2-7b36e5ecd6b2": 80.0,
+            "4c947540-dfd0-4f80-9956-afd7d7d73831": 100.0,
+            "7646c853-bba5-42a1-8aae-a146ec159c9d": 80.0,
+            "237dae75-bf60-46b2-afeb-4c09def6e4cf": 100.0,
+            "43b1cee4-355f-4350-8de1-6a4748f93bbb": 80.0
+          }
+        }
+      ]
+    },
+    {
+      "guid": "ead91c10-79f9-4fda-b5d4-24071e8828fc",
+      "name": "Кофе",
+      "priority": 3,
+      "allowSeveralItem": false,
+      "maxSelectedCount": 1,
+      "itemList": [
+        {
+          "guid": "431f56cf-1e34-42da-9a25-7d18efda2d12",
+          "name": "Дополнительный эспрессо",
+          "priority": 1,
+          "defaultPrice": 70.0,
+          "defaultTogoPrice": 70.0,
+          "menuTypeToPrice": {
+            "d22b0459-ff7d-4832-844d-5ffb664d8a5b": 70.0,
+            "56e0e414-6cdf-4f49-8728-864f0badb1a3": 70.0,
+            "c69857ea-f90b-4ced-bb43-19bed1ef5d39": 70.0
+          }
+        }
+      ]
+    },
+    {
+      "guid": "31f0a16e-0f94-4d43-9f9d-aed4a30f2f31",
+      "name": "Молоко",
+      "priority": 3,
+      "allowSeveralItem": false,
+      "maxSelectedCount": 1,
+      "itemList": [
+        {
+          "guid": "d6906ce3-52b3-4de7-b698-759b3a531434",
+          "name": "Молоко доп порция",
+          "priority": 1,
+          "defaultPrice": 30.0,
+          "defaultTogoPrice": 30.0,
+          "menuTypeToPrice": null
+        }
+      ]
+    }
+  ],
+  "errors": []
+}

@@ -1,7 +1,28 @@
 """Модуль работы с базой данных."""
 
 from . import db
-from .db import get_user, create_user, update_user_phone
+from .db import (
+    get_user,
+    create_user,
+    update_user_phone,
+    create_order,
+    get_order_by_ytimes_guid,
+    update_order_status,
+    create_pending_payment,
+    get_pending_payment,
+    delete_pending_payment,
+)
 
-__all__ = ["db", "get_user", "create_user", "update_user_phone"]
+__all__ = [
+    "db",
+    "get_user",
+    "create_user",
+    "update_user_phone",
+    "create_order",
+    "get_order_by_ytimes_guid",
+    "update_order_status",
+    "create_pending_payment",
+    "get_pending_payment",
+    "delete_pending_payment",
+]
 

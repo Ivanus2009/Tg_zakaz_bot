@@ -173,15 +173,36 @@ class YTimesAPIClient:
         )
         return payload.get("rows") or []
 
+    @staticmethod
+    def _normalize_client_for_order(client: dict) -> dict:
+        """Привести client к формату YTimes: name, cardNumber, phoneCode, phone, email."""
+        name = client.get("name") or "Гость"
+        email = client.get("email") or ""
+        raw_phone = (client.get("phone") or "").strip()
+        digits = "".join(c for c in raw_phone if c.isdigit())
+        if digits.startswith("8") and len(digits) >= 11:
+            phone = digits[1:]
+        elif digits.startswith("7") and len(digits) >= 11:
+            phone = digits[1:]
+        else:
+            phone = digits if digits else ""
+        return {
+            "name": name,
+            "cardNumber": None,
+            "phoneCode": "+7",
+            "phone": phone[:15],
+            "email": email,
+        }
+
     def create_order(
         self,
+        order_guid: str,
         shop_guid: str,
-        order_type: str,  # TOGO, IN, DELIVERY
-        items: list[dict],  # список OrderItem
-        client: Optional[dict] = None,  # OrderClient
+        order_type: str,
+        items: list[dict],
+        client: Optional[dict] = None,
         comment: Optional[str] = None,
-        paid_value: float = 0.0,
-        used_points: int = 0,
+        paid_value: Optional[float] = None,
         print_fiscal_check: bool = False,
         print_fiscal_check_email: Optional[str] = None,
     ) -> dict:
@@ -189,35 +210,36 @@ class YTimesAPIClient:
         Создать заказ в YTimes.
 
         Args:
+            order_guid: UUID заказа (ключ идемпотентности)
             shop_guid: GUID торговой точки
-            order_type: Тип заказа (TOGO, IN, DELIVERY)
-            items: Список позиций заказа
-            client: Данные клиента (имя, телефон, email)
+            order_type: TOGO, IN, DELIVERY, PRE_ORDER
+            items: Список позиций (menuItemGuid, menuTypeGuid?, supplementList, priceWithDiscount, quantity)
+            client: Данные клиента (name, phone?, email?) — приводятся к формату YTimes
             comment: Комментарий к заказу
-            paid_value: Оплаченная сумма (0 если оплата в кафе)
-            used_points: Количество бонусов для списания
+            paid_value: Оплаченная сумма; None = оплата при получении
             print_fiscal_check: Печатать ли фискальный чек
-            print_fiscal_check_email: Email для отправки чека
+            print_fiscal_check_email: Email для чека
 
         Returns:
-            Созданный заказ с guid и status
+            Созданный заказ (rows[0]) с guid и status
         """
         order_data = {
-            "guid": "",
-            "status": "",
+            "guid": order_guid,
             "shopGuid": shop_guid,
             "type": order_type,
             "itemList": items,
             "comment": comment or "",
             "paidValue": paid_value,
-            "usedPoints": used_points,
             "printFiscalCheck": print_fiscal_check,
-            "printFiscalCheckEmail": print_fiscal_check_email or None,
+            "printFiscalCheckEmail": print_fiscal_check_email,
         }
 
         if client:
-            order_data["client"] = client
+            order_data["client"] = self._normalize_client_for_order(client)
 
         payload = self._request("POST", "/order/save", json=order_data)
-        return payload
+        rows = payload.get("rows") or []
+        if not rows:
+            raise YTimesAPIError("Ответ API order/save не содержит заказа")
+        return rows[0]
 

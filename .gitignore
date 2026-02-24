@@ -26,3 +26,7 @@ data/
 
 # Temporary files
 menu_*.txt
+
+# Frontend (React)
+frontend/node_modules/
+frontend/dist/

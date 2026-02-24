@@ -6,12 +6,20 @@ import json
 import os
 from typing import TYPE_CHECKING
 
+import httpx
 from aiogram import Router, F
-from aiogram.filters import Command, CommandStart
-from aiogram.types import Message, WebAppInfo, KeyboardButton, ReplyKeyboardMarkup
+from aiogram.filters import Command, CommandStart, Filter
+from aiogram.types import (
+    LabeledPrice,
+    Message,
+    PreCheckoutQuery,
+    WebAppInfo,
+    KeyboardButton,
+    ReplyKeyboardMarkup,
+)
 
 if TYPE_CHECKING:
-    from aiogram import Bot
+    pass
 
 from database import db, get_user, create_user
 from database.models import User
@@ -20,6 +28,26 @@ router = Router()
 
 # URL мини-приложения (будет настроен позже)
 WEBAPP_URL = os.getenv("WEBAPP_URL", "https://your-domain.com/webapp")
+
+# URL backend для вызовов API (payment pending, order-from-payment)
+def _backend_url() -> str:
+    url = os.getenv("BACKEND_URL", "").strip()
+    if url:
+        return url.rstrip("/")
+    # Fallback: тот же хост, что и WEBAPP_URL
+    base = os.getenv("WEBAPP_URL", "http://localhost:8000").strip().rstrip("/")
+    return base
+
+
+def _bot_secret() -> str:
+    return os.getenv("BOT_INTERNAL_SECRET", "").strip()
+
+
+class SuccessfulPaymentFilter(Filter):
+    """Фильтр только для сообщений с successful_payment."""
+
+    async def __call__(self, message: Message) -> bool:
+        return bool(getattr(message, "successful_payment", None))
 
 
 @router.message(CommandStart())
@@ -101,9 +129,91 @@ async def handle_webapp_data(message: Message) -> None:
                 f"💳 {payment_status}\n\n"
                 "Спасибо за заказ! Мы свяжемся с вами для подтверждения."
             )
+        elif action == "request_payment":
+            payment_token = data.get("payment_token")
+            if not payment_token:
+                await message.answer("❌ Не передан токен платежа.")
+                return
+            provider_token = os.getenv("PAYMENT_PROVIDER_TOKEN", "").strip()
+            if not provider_token:
+                await message.answer("💳 Оплата онлайн пока не настроена. Выберите «Оплата при получении».")
+                return
+            secret = _bot_secret()
+            if not secret:
+                await message.answer("❌ Ошибка настройки бота (секрет).")
+                return
+            base = _backend_url()
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                r = await client.get(
+                    f"{base}/api/payment/pending/{payment_token}",
+                    headers={"X-Bot-Secret": secret},
+                )
+            if r.status_code != 200:
+                await message.answer("❌ Не удалось загрузить данные заказа. Попробуйте снова оформить заказ.")
+                return
+            body = r.json()
+            if not body.get("success"):
+                await message.answer("❌ " + (body.get("error") or "Платёж не найден."))
+                return
+            total = float(body["total"])
+            title = "Заказ в кафе"
+            description = f"Оплата заказа на сумму {total:.2f} ₽"
+            # Сумма в копейках для Telegram (RUB — 2 знака)
+            amount_kopecks = int(round(total * 100))
+            prices = [LabeledPrice(label="Заказ", amount=amount_kopecks)]
+            await message.bot.send_invoice(
+                chat_id=message.chat.id,
+                title=title,
+                description=description,
+                payload=payment_token,
+                provider_token=provider_token,
+                currency="RUB",
+                prices=prices,
+            )
         elif action == "error":
             error_msg = data.get("message", "Произошла ошибка")
             await message.answer(f"❌ Ошибка: {error_msg}")
     except Exception as e:
         await message.answer(f"❌ Произошла ошибка при обработке данных: {e}")
+
+
+@router.pre_checkout_query()
+async def handle_pre_checkout(pre_checkout_query: PreCheckoutQuery) -> None:
+    """Подтверждение оплаты перед списанием."""
+    await pre_checkout_query.answer(ok=True)
+
+
+@router.message(SuccessfulPaymentFilter())
+async def handle_successful_payment(message: Message) -> None:
+    """После успешной оплаты: создать заказ на backend и уведомить пользователя."""
+    payload = message.successful_payment.invoice_payload
+    total = message.successful_payment.total_amount / 100  # копейки -> рубли
+    secret = _bot_secret()
+    if not secret:
+        await message.answer("❌ Ошибка настройки. Заказ не создан. Обратитесь в поддержку.")
+        return
+    base = _backend_url()
+    async with httpx.AsyncClient(timeout=15.0) as client:
+        r = await client.post(
+            f"{base}/api/order-from-payment",
+            headers={"X-Bot-Secret": secret, "Content-Type": "application/json"},
+            json={"payment_token": payload},
+        )
+    if r.status_code != 200:
+        await message.answer(
+            "❌ Оплата прошла, но не удалось создать заказ. Деньги не списаны. Обратитесь в поддержку."
+        )
+        return
+    body = r.json()
+    if not body.get("success"):
+        await message.answer("❌ " + (body.get("error") or "Заказ не создан."))
+        return
+    order_id = body.get("order_id", "")
+    await message.answer(
+        f"✅ Заказ успешно оформлен и оплачен онлайн!\n\n"
+        f"📋 Номер заказа: {order_id}\n"
+        f"💰 Сумма: {total:.2f} ₽\n"
+        f"💳 Оплачено онлайн\n\n"
+        "Спасибо за заказ!"
+    )
 

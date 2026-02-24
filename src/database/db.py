@@ -46,6 +46,19 @@ async def init_db() -> None:
             )
         """)
 
+        # Ожидающие онлайн-оплаты (корзина до отправки инвойса)
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS pending_payments (
+                payment_token TEXT PRIMARY KEY,
+                telegram_id INTEGER NOT NULL,
+                items_json TEXT NOT NULL,
+                total REAL NOT NULL,
+                client_json TEXT,
+                comment TEXT,
+                created_at TEXT NOT NULL
+            )
+        """)
+
         await db.commit()
 
 
@@ -100,5 +113,90 @@ async def update_user_phone(telegram_id: int, phone: str) -> None:
             "UPDATE users SET phone = ? WHERE telegram_id = ?",
             (phone, telegram_id),
         )
+        await db.commit()
+
+
+async def create_order(
+    user_telegram_id: int,
+    ytimes_order_guid: str,
+    total_price: float,
+    status: str = "CREATED",
+    items_json: str = "[]",
+) -> None:
+    """Сохранить заказ после создания в YTimes."""
+    now = datetime.utcnow().isoformat()
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            """INSERT INTO orders
+               (user_telegram_id, items_json, total_price, status, ytimes_order_id, created_at)
+               VALUES (?, ?, ?, ?, ?, ?)""",
+            (user_telegram_id, items_json, total_price, status, ytimes_order_guid, now),
+        )
+        await db.commit()
+
+
+async def get_order_by_ytimes_guid(ytimes_guid: str) -> Optional[dict]:
+    """Найти заказ по YTimes guid (для вебхука). Возвращает dict с user_telegram_id, status и др."""
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(
+            "SELECT order_id, user_telegram_id, total_price, status, ytimes_order_id, created_at FROM orders WHERE ytimes_order_id = ?",
+            (ytimes_guid,),
+        ) as cursor:
+            row = await cursor.fetchone()
+            if not row:
+                return None
+            return dict(row)
+
+
+async def update_order_status(ytimes_guid: str, status: str) -> None:
+    """Обновить статус заказа (ACCEPTED/CANCELLED) после вебхука."""
+    now = datetime.utcnow().isoformat()
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            "UPDATE orders SET status = ?, updated_at = ? WHERE ytimes_order_id = ?",
+            (status, now, ytimes_guid),
+        )
+        await db.commit()
+
+
+async def create_pending_payment(
+    payment_token: str,
+    telegram_id: int,
+    items_json: str,
+    total: float,
+    client_json: str = "{}",
+    comment: str = "",
+) -> None:
+    """Сохранить ожидающий платёж (корзина для Telegram Invoice)."""
+    now = datetime.utcnow().isoformat()
+    async with aiosqlite.connect(DB_PATH) as conn:
+        await conn.execute(
+            """INSERT INTO pending_payments
+               (payment_token, telegram_id, items_json, total, client_json, comment, created_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?)""",
+            (payment_token, telegram_id, items_json, total, client_json, comment or "", now),
+        )
+        await conn.commit()
+
+
+async def get_pending_payment(payment_token: str) -> Optional[dict]:
+    """Получить ожидающий платёж по токену. Для вызова из бота."""
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(
+            "SELECT payment_token, telegram_id, items_json, total, client_json, comment FROM pending_payments WHERE payment_token = ?",
+            (payment_token,),
+        ) as cursor:
+            row = await cursor.fetchone()
+            if not row:
+                return None
+            return dict(row)
+
+
+async def delete_pending_payment(payment_token: str) -> None:
+    """Удалить ожидающий платёж после создания заказа."""
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("DELETE FROM pending_payments WHERE payment_token = ?", (payment_token,))
         await db.commit()
 

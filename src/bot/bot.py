@@ -25,11 +25,26 @@ from bot.handlers import router
 from database import db
 
 
+def _check_webapp_url() -> None:
+    """Предупреждение, если WEBAPP_URL не задан или не подходит для Telegram Mini App."""
+    url = os.getenv("WEBAPP_URL", "").strip()
+    if not url:
+        print("Предупреждение: WEBAPP_URL не задан. Кнопка «Открыть меню» может не работать в Telegram.")
+        return
+    if not url.startswith("https://"):
+        print("Предупреждение: WEBAPP_URL должен начинаться с https:// (Telegram не открывает http). Сейчас:", url)
+        return
+    if "your-domain.com" in url:
+        print("Предупреждение: WEBAPP_URL похож на заглушку (your-domain.com). Задайте реальный URL деплоя в .env")
+
+
 async def main() -> None:
     """Запуск бота."""
     bot_token = os.getenv("TELEGRAM_BOT_TOKEN")
     if not bot_token:
         raise ValueError("TELEGRAM_BOT_TOKEN не задан в переменных окружения")
+
+    _check_webapp_url()
 
     # Инициализация базы данных
     await db.init_db()

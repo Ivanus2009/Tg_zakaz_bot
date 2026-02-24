@@ -1,0 +1,61 @@
+# Продакшен на VPS: nginx, certbot, web (FastAPI + SPA), bot.
+# Запуск из корня репо: docker compose -f deploy/docker-compose.yml up -d
+# .env — в корне репо (../.env относительно deploy/).
+
+services:
+  nginx:
+    image: nginx:alpine
+    container_name: marten-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./certbot/www:/var/www/certbot:ro
+      - ./certbot/conf:/etc/letsencrypt:ro
+    depends_on:
+      - web
+    restart: unless-stopped
+
+  certbot:
+    image: certbot/certbot
+    container_name: marten-certbot
+    volumes:
+      - ./certbot/www:/var/www/certbot
+      - ./certbot/conf:/etc/letsencrypt
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
+    # Для первичного получения сертов запускать вручную (см. DEPLOY.md).
+
+  web:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    image: tgzakaz-app
+    container_name: marten-web
+    env_file: ../.env
+    volumes:
+      - tgzakaz_data:/app/data
+    expose:
+      - "8000"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8000/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  bot:
+    image: tgzakaz-app
+    container_name: marten-bot
+    env_file: ../.env
+    volumes:
+      - tgzakaz_data:/app/data
+    command: ["python", "src/bot/bot.py"]
+    depends_on:
+      web:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  tgzakaz_data:

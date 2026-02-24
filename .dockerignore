@@ -1,0 +1,31 @@
+# Git and env
+.git
+.gitignore
+.env
+.env.*
+!.env.example
+example.env
+
+# Python
+.venv
+venv
+__pycache__
+*.pyc
+*.pyo
+.pytest_cache
+.mypy_cache
+
+# Node
+frontend/node_modules
+frontend/dist
+
+# IDE and docs (optional: remove if you want docs in image)
+*.md
+!README_DOCKER.md
+
+# Local data (mounted at runtime)
+data/
+
+# Misc
+*.log
+.DS_Store

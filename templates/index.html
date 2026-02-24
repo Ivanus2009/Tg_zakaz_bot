@@ -41,6 +41,75 @@
             min-height: 100vh;
             -webkit-font-smoothing: antialiased;
         }
+
+        /* Анимации и переходы */
+        .screen {
+            animation: screenFadeIn 0.25s ease-out;
+        }
+        @keyframes screenFadeIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .menu-card {
+            animation: cardAppear 0.35s ease-out backwards;
+        }
+        .menu-card:nth-child(1) { animation-delay: 0.02s; }
+        .menu-card:nth-child(2) { animation-delay: 0.05s; }
+        .menu-card:nth-child(3) { animation-delay: 0.08s; }
+        .menu-card:nth-child(4) { animation-delay: 0.11s; }
+        .menu-card:nth-child(5) { animation-delay: 0.14s; }
+        .menu-card:nth-child(6) { animation-delay: 0.17s; }
+        .menu-card:nth-child(n+7) { animation-delay: 0.2s; }
+        @keyframes cardAppear {
+            from { opacity: 0; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        .cart-modal {
+            transition: opacity 0.2s ease;
+        }
+        .cart-modal.active {
+            animation: overlayFadeIn 0.2s ease-out;
+        }
+        .cart-modal.active .cart-panel {
+            animation: panelSlideUp 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+        }
+        @keyframes overlayFadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        @keyframes panelSlideUp {
+            from { transform: translateY(100%); }
+            to { transform: translateY(0); }
+        }
+        .cart-badge {
+            transition: transform 0.2s ease;
+        }
+        .cart-badge.bump {
+            animation: badgeBump 0.35s ease;
+        }
+        @keyframes badgeBump {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.25); }
+        }
+        .btn-primary {
+            transition: transform 0.15s ease, opacity 0.15s ease;
+        }
+        .size-option, .supplement-item {
+            transition: border-color 0.2s ease, background 0.2s ease, transform 0.15s ease;
+        }
+        .loading-spinner {
+            display: inline-block;
+            width: 32px;
+            height: 32px;
+            border: 3px solid var(--border);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin-bottom: 12px;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
         
         /* Навигация */
         .nav-bar {
@@ -89,6 +158,14 @@
             color: var(--bg);
             transform: scale(0.95);
         }
+
+        .nav-back {
+            display: none;
+            margin-right: 8px;
+        }
+        .nav-back.visible {
+            display: flex;
+        }
         
         .cart-badge {
             position: absolute;
@@ -135,7 +212,7 @@
             border-radius: 16px;
             padding: 16px;
             cursor: pointer;
-            transition: all 0.2s;
+            transition: transform 0.15s ease, border-color 0.2s ease, background 0.2s ease;
             border: 2px solid transparent;
             text-align: center;
         }
@@ -194,6 +271,10 @@
         .size-option.selected {
             border-color: var(--accent);
             background: var(--bg);
+        }
+
+        .size-option:active {
+            transform: scale(0.98);
         }
         
         .size-option-name {
@@ -304,7 +385,7 @@
         }
         
         .supplement-item:active {
-            border-color: var(--accent);
+            transform: scale(0.98);
         }
         
         .supplement-item.selected {
@@ -542,6 +623,7 @@
 <body>
     <!-- Навигация -->
     <div class="nav-bar">
+        <button class="nav-btn nav-back" id="nav-back" onclick="goBack()" title="Назад" aria-label="Назад">←</button>
         <div class="nav-title" id="nav-title">☕ Меню</div>
         <div class="nav-buttons">
             <button class="nav-btn" onclick="showProfile()" title="Профиль">👤</button>
@@ -555,7 +637,10 @@
     <!-- Экран 1: Список меню -->
     <div id="screen-menu" class="screen active">
         <div class="menu-grid" id="menu-grid">
-            <div class="loading">Загрузка меню...</div>
+            <div class="loading" id="menu-loading">
+                <div class="loading-spinner"></div>
+                Загрузка меню...
+            </div>
         </div>
     </div>
 
@@ -633,14 +718,20 @@
         let currentQuantity = 1;
         let supplementsData = [];
         let orders = []; // История заказов
+        let screenHistory = []; // Для кнопки «Назад»
         const API_BASE = '/api';
 
         // Навигация между экранами
-        function showScreen(screenId) {
+        function showScreen(screenId, addToHistory) {
+            if (addToHistory !== false) {
+                const current = document.querySelector('.screen.active');
+                if (current && current.id !== screenId) {
+                    screenHistory.push(current.id);
+                }
+            }
             document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
             document.getElementById(screenId).classList.add('active');
             
-            // Обновляем заголовок
             const titles = {
                 'screen-menu': '☕ Меню',
                 'screen-size': 'Выбор размера',
@@ -648,6 +739,19 @@
                 'screen-profile': 'Профиль'
             };
             document.getElementById('nav-title').textContent = titles[screenId] || '☕ Меню';
+
+            const backBtn = document.getElementById('nav-back');
+            const showBack = ['screen-size', 'screen-supplements', 'screen-profile'].includes(screenId);
+            backBtn.classList.toggle('visible', showBack);
+        }
+
+        function goBack() {
+            if (screenHistory.length === 0) {
+                showScreen('screen-menu', false);
+                return;
+            }
+            const prev = screenHistory.pop();
+            showScreen(prev, false);
         }
 
         function showProfile() {
@@ -877,7 +981,8 @@
             
             cart.push(cartItem);
             updateCart();
-            showScreen('screen-menu');
+            screenHistory = []; // Сбрасываем историю при возврате в меню после добавления
+            showScreen('screen-menu', false);
             tg.showAlert('Добавлено в корзину');
         }
 
@@ -887,6 +992,8 @@
             if (count > 0) {
                 badge.textContent = count;
                 badge.style.display = 'flex';
+                badge.classList.add('bump');
+                badge.addEventListener('animationend', () => badge.classList.remove('bump'), { once: true });
             } else {
                 badge.style.display = 'none';
             }
@@ -985,7 +1092,8 @@
                         cart = [];
                         updateCart();
                         hideCart();
-                        showScreen('screen-menu');
+                        screenHistory = [];
+                        showScreen('screen-menu', false);
                         tg.showAlert('✅ Заказ #' + result.order_id + ' успешно сформирован!\n💰 Сумма: ' + total.toFixed(2) + ' ₽');
                     } else {
                         tg.showAlert('Ошибка: ' + (result.error || 'Неизвестная ошибка'));
