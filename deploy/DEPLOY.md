@@ -76,7 +76,7 @@ ufw status
 ```bash
 mkdir -p /opt/marten
 cd /opt/marten
-git clone <URL_РЕПОЗИТОРИЯ> .
+git clone https://github.com/Ivanus2009/Tg_zakaz_bot.git .
 ```
 
 Вариант B — скопировать файлы с локальной машины (scp/rsync). Должна получиться структура:
