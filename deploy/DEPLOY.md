@@ -142,11 +142,11 @@ docker compose -f deploy/docker-compose.yml up -d
 
 ## 6. Получение SSL-сертификатов (certbot)
 
-Один раз получить сертификаты (подставить свой email):
+Один раз получить сертификаты (подставить свой email). Важно: `--entrypoint ""` — иначе контейнер запустит только `certbot renew` и сертификаты не выдадутся.
 
 ```bash
 cd /opt/marten
-docker compose -f deploy/docker-compose.yml run --rm certbot certonly \
+docker compose -f deploy/docker-compose.yml run --rm --entrypoint "" certbot certbot certonly \
   --webroot -w /var/www/certbot \
   -d palm-marten.ru -d www.palm-marten.ru -d api.palm-marten.ru \
   --email your@email.com \
@@ -178,7 +178,7 @@ crontab -e
 Добавить строку (путь к compose — при необходимости поправить):
 
 ```bash
-0 3 * * * cd /opt/marten && docker compose -f deploy/docker-compose.yml run --rm certbot renew && docker compose -f deploy/docker-compose.yml exec nginx nginx -s reload
+0 3 * * * cd /opt/marten && docker compose -f deploy/docker-compose.yml run --rm --entrypoint "" certbot certbot renew && docker compose -f deploy/docker-compose.yml exec nginx nginx -s reload
 ```
 
 ---
