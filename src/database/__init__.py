@@ -2,6 +2,7 @@
 
 from . import db
 from .db import (
+    init_db,
     get_user,
     create_user,
     update_user_phone,
@@ -15,6 +16,7 @@ from .db import (
 
 __all__ = [
     "db",
+    "init_db",
     "get_user",
     "create_user",
     "update_user_phone",
