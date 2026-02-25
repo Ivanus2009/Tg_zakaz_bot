@@ -1,8 +1,15 @@
 const TITLES: Record<string, string> = {
   menu: "☕ Меню",
-  size: "Выбор размера",
+  size: "Размер",
   supplements: "Добавки",
   profile: "Профиль",
+};
+
+const STEP_HINT: Record<string, string> = {
+  menu: "",
+  size: "Меню → Размер",
+  supplements: "Меню → Добавки",
+  profile: "",
 };
 
 interface NavBarProps {
@@ -22,6 +29,8 @@ export function NavBar({
 }: NavBarProps) {
   const showBack = ["size", "supplements", "profile"].includes(screen);
 
+  const stepHint = STEP_HINT[screen];
+
   return (
     <nav className="nav-bar">
       <button
@@ -33,7 +42,10 @@ export function NavBar({
       >
         ←
       </button>
-      <div className="nav-title">{TITLES[screen] ?? "☕ Меню"}</div>
+      <div className="nav-title-wrap">
+        <div className="nav-title">{TITLES[screen] ?? "☕ Меню"}</div>
+        {stepHint ? <div className="nav-step">{stepHint}</div> : null}
+      </div>
       <div className="nav-buttons">
         <button
           type="button"

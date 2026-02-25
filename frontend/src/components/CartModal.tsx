@@ -12,6 +12,7 @@ interface CartModalProps {
   onCommentChange: (value: string) => void;
   onClose: () => void;
   onCheckout: () => void;
+  onRemoveItem: (index: number) => void;
 }
 
 export function CartModal({
@@ -24,6 +25,7 @@ export function CartModal({
   onCommentChange,
   onClose,
   onCheckout,
+  onRemoveItem,
 }: CartModalProps) {
   if (!isOpen) return null;
 
@@ -56,7 +58,18 @@ export function CartModal({
                     {item.typeName} × {item.quantity}
                   </div>
                 </div>
-                <div className="cart-item-price">{itemTotal.toFixed(2)} ₽</div>
+                <div className="cart-item-right">
+                  <span className="cart-item-price">{itemTotal.toFixed(2)} ₽</span>
+                  <button
+                    type="button"
+                    className="cart-item-remove"
+                    onClick={() => onRemoveItem(index)}
+                    title="Удалить"
+                    aria-label="Удалить позицию"
+                  >
+                    ✕
+                  </button>
+                </div>
               </div>
             );
           })}

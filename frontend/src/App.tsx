@@ -155,6 +155,27 @@ export default function App() {
     goTo('supplements');
   }, [selectedType, showAlert, goTo]);
 
+  const addToCartFromSize = useCallback(() => {
+    if (!currentItem || !selectedType) return;
+    const cartItem: CartItem = {
+      menuItemGuid: currentItem.guid,
+      menuTypeGuid: selectedType.guid,
+      supplementList: {},
+      priceWithDiscount: selectedType.price,
+      quantity,
+      name: currentItem.name,
+      typeName: selectedType.name || '',
+      price: selectedType.price,
+    };
+    setCart((c) => [...c, cartItem]);
+    setScreenHistory([]);
+    setScreen('menu');
+    setCurrentItem(null);
+    setSelectedType(null);
+    setSelectedSupplements({});
+    showAlert('Добавлено в корзину');
+  }, [currentItem, selectedType, quantity, showAlert]);
+
   const supplementCategoriesForCurrentItem = (): SupplementCategory[] => {
     if (!currentItem?.supplementCategoryToFreeCount) return [];
     const guids = Object.keys(currentItem.supplementCategoryToFreeCount);
@@ -211,6 +232,10 @@ export default function App() {
 
   const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
   const cartTotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+
+  const removeFromCart = useCallback((index: number) => {
+    setCart((c) => c.filter((_, i) => i !== index));
+  }, []);
 
   const checkout = useCallback(() => {
     if (cart.length === 0) {
@@ -348,6 +373,8 @@ export default function App() {
           onSelectType={setSelectedType}
           onQuantityChange={(delta) => setQuantity((q) => Math.max(1, q + delta))}
           onNext={goToSupplements}
+          onAddWithoutSupplements={addToCartFromSize}
+          hasSupplementsScreen={supplementCategoriesForCurrentItem().length > 0}
         />
       )}
 
@@ -378,6 +405,7 @@ export default function App() {
         onCommentChange={setOrderComment}
         onClose={() => setCartOpen(false)}
         onCheckout={checkout}
+        onRemoveItem={removeFromCart}
       />
     </>
   );

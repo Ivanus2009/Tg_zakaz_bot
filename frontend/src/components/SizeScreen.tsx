@@ -8,6 +8,9 @@ interface SizeScreenProps {
   onSelectType: (t: MenuType) => void;
   onQuantityChange: (delta: number) => void;
   onNext: () => void;
+  /** Добавить в корзину без добавок (показать, если есть экран добавок) */
+  onAddWithoutSupplements?: () => void;
+  hasSupplementsScreen?: boolean;
 }
 
 export function SizeScreen({
@@ -18,6 +21,8 @@ export function SizeScreen({
   onSelectType,
   onQuantityChange,
   onNext,
+  onAddWithoutSupplements,
+  hasSupplementsScreen,
 }: SizeScreenProps) {
   return (
     <div className="screen active">
@@ -58,8 +63,17 @@ export function SizeScreen({
             </button>
           </div>
         </div>
+        {hasSupplementsScreen && onAddWithoutSupplements && (
+          <button
+            type="button"
+            className="btn-secondary"
+            onClick={onAddWithoutSupplements}
+          >
+            В корзину без добавок
+          </button>
+        )}
         <button type="button" className="btn-primary" onClick={onNext}>
-          Далее
+          {hasSupplementsScreen ? "Выбрать добавки →" : "В корзину"}
         </button>
       </div>
     </div>

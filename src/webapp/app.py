@@ -38,6 +38,11 @@ from ytimes import YTimesAPIClient, YTimesAPIError
 
 BOT_SECRET_HEADER = "X-Bot-Secret"
 
+# Хранилище меню и добавок — заполняется только фоновой задачей раз в 20 мин (лимит YTimes 10/час)
+_MENU_REFRESH_INTERVAL = 20 * 60  # секунд
+_stored_menu: dict | None = None
+_stored_supplements: list | None = None
+
 app = FastAPI(title="Telegram Mini App - Заказы")
 
 # Статические файлы (legacy)
@@ -52,6 +57,35 @@ templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 ytimes_client = None
 
 
+async def _refresh_menu_and_supplements() -> None:
+    """Один проход: загрузить меню и добавки из YTimes, сохранить в хранилище."""
+    global _stored_menu, _stored_supplements
+    if not ytimes_client:
+        return
+    try:
+        loop = asyncio.get_event_loop()
+        menu = await loop.run_in_executor(None, ytimes_client.get_menu_items)
+        target = None
+        for g in menu:
+            if g.get("name") == "Меню ( онлайн заказы )":
+                target = g
+                break
+        if target:
+            _stored_menu = target
+        supps = await loop.run_in_executor(None, ytimes_client.get_supplements)
+        _stored_supplements = supps
+        print("Меню и добавки обновлены из YTimes.")
+    except Exception as e:
+        print(f"Фоновое обновление меню: {e}")
+
+
+async def _menu_refresh_loop() -> None:
+    """Фоновая задача: раз в 20 минут обновлять меню и добавки из YTimes."""
+    while True:
+        await _refresh_menu_and_supplements()
+        await asyncio.sleep(_MENU_REFRESH_INTERVAL)
+
+
 @app.on_event("startup")
 async def startup():
     """Инициализация при запуске."""
@@ -64,6 +98,8 @@ async def startup():
         ytimes_client = YTimesAPIClient.from_env()
     except Exception as e:
         print(f"Ошибка инициализации YTimes клиента: {e}")
+    if ytimes_client:
+        asyncio.create_task(_menu_refresh_loop())
 
 
 @app.get("/health")
@@ -74,47 +110,24 @@ async def health():
 
 @app.get("/api/menu")
 async def get_menu():
-    """Получить меню для торговой точки."""
-    if not ytimes_client:
-        return JSONResponse({"error": "YTimes клиент не инициализирован"}, status_code=500)
-
-    try:
-        # Вызываем синхронный метод в executor, чтобы не блокировать event loop
-        import asyncio
-        loop = asyncio.get_event_loop()
-        menu = await loop.run_in_executor(None, ytimes_client.get_menu_items)
-        
-        # Фильтруем только группу "Меню ( онлайн заказы )"
-        target_group = None
-        for group in menu:
-            if group.get("name") == "Меню ( онлайн заказы )":
-                target_group = group
-                break
-
-        if not target_group:
-            return JSONResponse({"error": "Группа меню не найдена"}, status_code=404)
-
-        return JSONResponse({
-            "success": True,
-            "data": target_group
-        })
-    except Exception as e:
-        return JSONResponse({"error": str(e)}, status_code=500)
+    """Меню отдаётся из хранилища (обновляется фоновой задачей раз в 20 мин)."""
+    if _stored_menu is not None:
+        return JSONResponse({"success": True, "data": _stored_menu})
+    return JSONResponse(
+        {"error": "Меню загружается, попробуйте через минуту."},
+        status_code=503,
+    )
 
 
 @app.get("/api/supplements")
 async def get_supplements():
-    """Получить список добавок/модификаторов."""
-    if not ytimes_client:
-        return JSONResponse({"error": "YTimes клиент не инициализирован"}, status_code=500)
-
-    try:
-        import asyncio
-        loop = asyncio.get_event_loop()
-        supplements = await loop.run_in_executor(None, ytimes_client.get_supplements)
-        return JSONResponse({"success": True, "data": supplements})
-    except Exception as e:
-        return JSONResponse({"error": str(e)}, status_code=500)
+    """Добавки отдаются из хранилища (обновляется фоновой задачей раз в 20 мин)."""
+    if _stored_supplements is not None:
+        return JSONResponse({"success": True, "data": _stored_supplements})
+    return JSONResponse(
+        {"error": "Данные загружаются, попробуйте через минуту."},
+        status_code=503,
+    )
 
 
 def _build_ytimes_items(items: list) -> list:
