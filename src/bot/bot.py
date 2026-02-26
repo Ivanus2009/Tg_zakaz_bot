@@ -117,6 +117,16 @@ async def main() -> None:
 
     dp.include_router(router)
 
+    # #region agent log — запись при старте, чтобы убедиться, что лог-файл используется
+    try:
+        _start_log_path = (ROOT_DIR / "data" / "debug.log") if (str(ROOT_DIR) == "/app") else (ROOT_DIR / ".cursor" / "debug.log")
+        _start_log_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(_start_log_path, "a", encoding="utf-8") as _f:
+            _f.write(json.dumps({"location": "bot.py", "message": "bot_start_polling", "data": {}, "hypothesisId": "H1", "timestamp": int(time.time() * 1000)}, ensure_ascii=False) + "\n")
+    except Exception:
+        pass
+    # #endregion
+
     # Запуск polling
     print("Бот запущен...")
     await dp.start_polling(bot)

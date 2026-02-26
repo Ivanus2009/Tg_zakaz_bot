@@ -255,6 +255,17 @@ async def api_payment_prepare(request: Request):
             client_json=json.dumps(client),
             comment=comment,
         )
+        # #region agent log — фиксируем, что фронт дошёл до успешной подготовки платежа (перед вызовом sendData)
+        try:
+            from pathlib import Path
+            _root = Path(__file__).resolve().parents[2]
+            _log_path = (_root / "data" / "debug.log") if str(_root) == "/app" else (_root / ".cursor" / "debug.log")
+            _log_path.parent.mkdir(parents=True, exist_ok=True)
+            with open(_log_path, "a", encoding="utf-8") as _f:
+                _f.write(json.dumps({"location": "webapp app.py", "message": "payment_prepare_success", "data": {"telegram_id": telegram_id, "total": total}, "hypothesisId": "H2", "timestamp": int(__import__("time").time() * 1000)}, ensure_ascii=False) + "\n")
+        except Exception:
+            pass
+        # #endregion
         return JSONResponse({"success": True, "payment_token": payment_token})
     except Exception as e:
         return JSONResponse({"success": False, "error": str(e)}, status_code=500)
