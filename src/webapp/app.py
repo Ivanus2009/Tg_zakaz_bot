@@ -243,7 +243,10 @@ async def api_payment_prepare(request: Request):
         total = sum(item.get("priceWithDiscount", 0) * item.get("quantity", 1) for item in items)
         telegram_id = int(data.get("telegramUserId") or 0)
         if not telegram_id:
-            return JSONResponse({"success": False, "error": "Требуется telegramUserId"}, status_code=400)
+            return JSONResponse(
+                {"success": False, "error": "Откройте меню из чата с ботом (кнопка «Открыть меню» под полем ввода), затем снова выберите «Оплатить онлайн»."},
+                status_code=400,
+            )
         client = data.get("client") or {}
         comment = (data.get("comment") or "").strip()
         payment_token = uuid.uuid4().hex

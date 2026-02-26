@@ -40,7 +40,7 @@ function saveOrdersToStorage(orders: SavedOrder[]) {
 type ScreenId = 'menu' | 'size' | 'supplements' | 'profile';
 
 export default function App() {
-  const { user, showAlert, showConfirm, sendData, close: closeWebApp, canSendToBot } = useTelegram();
+  const { user, showAlert, showConfirm, sendData, close: closeWebApp, canSendToBot, getTelegramUser } = useTelegram();
 
   const [menuGroup, setMenuGroup] = useState<MenuGroup | null>(null);
   const [menuLoading, setMenuLoading] = useState(true);
@@ -237,11 +237,15 @@ export default function App() {
     setCart((c) => c.filter((_, i) => i !== index));
   }, []);
 
+  const NO_USER_MESSAGE =
+    'Откройте меню из чата с ботом: нажмите кнопку «Открыть меню» под полем ввода. Затем снова оформите заказ.';
+
   const checkout = useCallback(() => {
     if (cart.length === 0) {
       showAlert('Корзина пуста');
       return;
     }
+    const currentUser = getTelegramUser?.() ?? user;
     const total = cartTotal;
     const baseOrderPayload = {
       items: cart.map((item) => ({
@@ -252,19 +256,21 @@ export default function App() {
         quantity: item.quantity,
       })),
       client: {
-        name: user?.first_name || 'Пользователь',
-        phone: user?.phone || '',
+        name: currentUser?.first_name || 'Пользователь',
+        phone: (currentUser as { phone?: string })?.phone || '',
         email: '',
       },
       comment: orderComment.trim() || undefined,
-      telegramUserId: user?.id,
+      telegramUserId: currentUser?.id,
     };
 
     if (paymentMethod === 'online') {
       if (!canSendToBot) {
-        showAlert(
-          'Оплата онлайн работает только при открытии меню из Telegram. Напишите боту и нажмите «Открыть меню» в чате — затем оформите заказ с оплатой онлайн.'
-        );
+        showAlert(NO_USER_MESSAGE + '\n\nОплата картой возможна только при открытии из чата с ботом.');
+        return;
+      }
+      if (!currentUser?.id) {
+        showAlert(NO_USER_MESSAGE + '\n\nДля оплаты картой нужен ваш аккаунт Telegram.');
         return;
       }
       showConfirm('Оформить заказ с оплатой онлайн?', (confirmed) => {
@@ -351,6 +357,7 @@ export default function App() {
     sendData,
     canSendToBot,
     closeWebApp,
+    getTelegramUser,
   ]);
 
   const showProfile = useCallback(() => goTo('profile'), [goTo]);
