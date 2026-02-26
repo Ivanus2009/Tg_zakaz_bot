@@ -11,22 +11,24 @@ from typing import TYPE_CHECKING
 # #region agent log
 def _debug_log(message: str, data: dict, hypothesis_id: str) -> None:
     try:
-        log_path = Path(__file__).resolve().parents[2] / ".cursor" / "debug.log"
+        root = Path(__file__).resolve().parents[2]
+        log_path = (root / "data" / "debug.log") if (str(root) == "/app") else (root / ".cursor" / "debug.log")
         log_path.parent.mkdir(parents=True, exist_ok=True)
-        with open(log_path, "a", encoding="utf-8") as f:
-            f.write(
-                json.dumps(
-                    {
-                        "location": "handlers.py",
-                        "message": message,
-                        "data": data,
-                        "hypothesisId": hypothesis_id,
-                        "timestamp": int(time.time() * 1000),
-                    },
-                    ensure_ascii=False,
-                )
-                + "\n"
+        line = (
+            json.dumps(
+                {
+                    "location": "handlers.py",
+                    "message": message,
+                    "data": data,
+                    "hypothesisId": hypothesis_id,
+                    "timestamp": int(time.time() * 1000),
+                },
+                ensure_ascii=False,
             )
+            + "\n"
+        )
+        with open(log_path, "a", encoding="utf-8") as f:
+            f.write(line)
     except Exception:
         pass
 # #endregion
