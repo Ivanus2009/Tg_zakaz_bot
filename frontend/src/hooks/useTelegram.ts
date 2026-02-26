@@ -27,11 +27,20 @@ declare global {
 
 type WebAppUser = NonNullable<NonNullable<Window['Telegram']>['WebApp']['initDataUnsafe']>['user'];
 
-/** Сырая строка initData — в части клиентов может быть init_data (snake_case) */
+/** Сырая строка initData: WebApp объект или URL hash (tgWebAppData) — так передаёт Telegram при открытии */
 function getInitDataString(): string | undefined {
   if (typeof window === 'undefined') return undefined;
   const w = (window as unknown as { Telegram?: { WebApp?: { initData?: string; init_data?: string } } }).Telegram?.WebApp;
-  return w?.initData ?? w?.init_data;
+  const fromWebApp = w?.initData ?? w?.init_data;
+  if (fromWebApp) return fromWebApp;
+  const hash = window.location.hash.slice(1);
+  if (!hash) return undefined;
+  try {
+    const hashParams = new URLSearchParams(hash);
+    return hashParams.get('tgWebAppData') ?? undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 /** Парсим user из сырой строки initData */
@@ -53,14 +62,13 @@ function parseUserFromInitData(initData: string | undefined): WebAppUser {
   }
 }
 
-/** Всегда читает актуального user из Telegram (ленивое чтение при каждом обращении) */
+/** Всегда читает актуального user: initDataUnsafe, затем initData из WebApp, затем из location.hash (tgWebAppData) */
 function getTelegramUser(): WebAppUser {
   if (typeof window === 'undefined') return undefined;
   const tg = window.Telegram?.WebApp;
-  if (!tg) return undefined;
-  const fromUnsafe = tg.initDataUnsafe?.user;
-  if (fromUnsafe?.id != null) return fromUnsafe;
-  return parseUserFromInitData(getInitDataString());
+  if (tg?.initDataUnsafe?.user?.id != null) return tg.initDataUnsafe.user;
+  const initStr = getInitDataString();
+  return parseUserFromInitData(initStr);
 }
 
 export function useTelegram() {
