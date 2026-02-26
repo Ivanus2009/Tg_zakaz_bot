@@ -4,7 +4,32 @@ from __future__ import annotations
 
 import json
 import os
+import time
+from pathlib import Path
 from typing import TYPE_CHECKING
+
+# #region agent log
+def _debug_log(message: str, data: dict, hypothesis_id: str) -> None:
+    try:
+        log_path = Path(__file__).resolve().parents[2] / ".cursor" / "debug.log"
+        log_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(log_path, "a", encoding="utf-8") as f:
+            f.write(
+                json.dumps(
+                    {
+                        "location": "handlers.py",
+                        "message": message,
+                        "data": data,
+                        "hypothesisId": hypothesis_id,
+                        "timestamp": int(time.time() * 1000),
+                    },
+                    ensure_ascii=False,
+                )
+                + "\n"
+            )
+    except Exception:
+        pass
+# #endregion
 
 import httpx
 from aiogram import Router, F
@@ -114,6 +139,13 @@ async def handle_webapp_data(message: Message) -> None:
     try:
         data = json.loads(message.web_app_data.data)
         action = data.get("action")
+        # #region agent log
+        _debug_log(
+            "handle_webapp_data received",
+            {"action": action, "has_payment_token": bool(data.get("payment_token"))},
+            "H1",
+        )
+        # #endregion
 
         if action == "order_created":
             order_id = data.get("order_id")
@@ -135,6 +167,13 @@ async def handle_webapp_data(message: Message) -> None:
                 await message.answer("❌ Не передан токен платежа.")
                 return
             provider_token = os.getenv("PAYMENT_PROVIDER_TOKEN", "").strip()
+            # #region agent log
+            _debug_log(
+                "request_payment provider_token check",
+                {"provider_token_set": bool(provider_token), "token_length": len(provider_token) if provider_token else 0},
+                "H5",
+            )
+            # #endregion
             if not provider_token:
                 await message.answer("💳 Оплата онлайн пока не настроена. Выберите «Оплата при получении».")
                 return
@@ -148,10 +187,20 @@ async def handle_webapp_data(message: Message) -> None:
                     f"{base}/api/payment/pending/{payment_token}",
                     headers={"X-Bot-Secret": secret},
                 )
+            try:
+                body = r.json()
+            except Exception:
+                body = {}
+            # #region agent log
+            _debug_log(
+                "request_payment backend response",
+                {"status_code": r.status_code, "body_success": body.get("success"), "body_error": body.get("error")},
+                "H2",
+            )
+            # #endregion
             if r.status_code != 200:
                 await message.answer("❌ Не удалось загрузить данные заказа. Попробуйте снова оформить заказ.")
                 return
-            body = r.json()
             if not body.get("success"):
                 await message.answer("❌ " + (body.get("error") or "Платёж не найден."))
                 return
@@ -161,6 +210,9 @@ async def handle_webapp_data(message: Message) -> None:
             # Сумма в копейках для Telegram (RUB — 2 знака)
             amount_kopecks = int(round(total * 100))
             prices = [LabeledPrice(label="Заказ", amount=amount_kopecks)]
+            # #region agent log
+            _debug_log("request_payment before send_invoice", {"amount_kopecks": amount_kopecks}, "H3")
+            # #endregion
             await message.bot.send_invoice(
                 chat_id=message.chat.id,
                 title=title,
@@ -170,10 +222,16 @@ async def handle_webapp_data(message: Message) -> None:
                 currency="RUB",
                 prices=prices,
             )
+            # #region agent log
+            _debug_log("request_payment send_invoice success", {}, "H3")
+            # #endregion
         elif action == "error":
             error_msg = data.get("message", "Произошла ошибка")
             await message.answer(f"❌ Ошибка: {error_msg}")
     except Exception as e:
+        # #region agent log
+        _debug_log("handle_webapp_data exception", {"error": str(e), "error_type": type(e).__name__}, "H3")
+        # #endregion
         await message.answer(f"❌ Произошла ошибка при обработке данных: {e}")
 
 
