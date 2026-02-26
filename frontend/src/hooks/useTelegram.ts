@@ -8,6 +8,7 @@ declare global {
         showConfirm: (message: string, callback: (confirmed: boolean) => void) => void;
         showPopup: (params: { title: string; message: string; buttons?: { type: string }[] }) => void;
         sendData: (data: string) => void;
+        close: () => void;
         initDataUnsafe?: {
           user?: {
             id?: number;
@@ -37,6 +38,8 @@ export function useTelegram() {
     showAlert: (msg: string) => tg?.showAlert(msg),
     showConfirm: (msg: string, cb: (ok: boolean) => void) => tg?.showConfirm(msg, cb),
     sendData: (data: object) => tg?.sendData(JSON.stringify(data)),
+    /** Закрыть Mini App (после sendData данные в части клиентов доставляются только после close) */
+    close: () => tg?.close?.(),
     /** true только когда приложение открыто внутри Telegram (есть sendData в бота) */
     canSendToBot: typeof tg?.sendData === 'function',
   };

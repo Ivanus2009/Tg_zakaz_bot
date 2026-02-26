@@ -13,7 +13,7 @@ from dotenv import load_dotenv
 from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
-from aiogram.types import Update
+from aiogram.types import MenuButtonDefault, Update
 
 # #region agent log
 def _debug_log_update(event) -> None:
@@ -28,6 +28,16 @@ def _debug_log_update(event) -> None:
             msg = event
             update_id = getattr(event, "message_id", None)
         has_web_app_data = bool(msg and getattr(msg, "web_app_data", None))
+        msg_hint = None
+        if msg is not None:
+            wad = getattr(msg, "web_app_data", None)
+            txt = getattr(msg, "text", None)
+            msg_hint = {
+                "has_text": txt is not None,
+                "text_preview": (txt[:80] if txt else None),
+                "has_web_app_data_attr": wad is not None,
+                "message_content_type": getattr(msg, "content_type", None),
+            }
         line = (
             json.dumps(
                 {
@@ -37,6 +47,7 @@ def _debug_log_update(event) -> None:
                         "update_id": update_id,
                         "has_message": msg is not None,
                         "has_web_app_data": has_web_app_data,
+                        "msg_hint": msg_hint,
                     },
                     "hypothesisId": "H1",
                     "timestamp": int(time.time() * 1000),
@@ -93,6 +104,11 @@ async def main() -> None:
         token=bot_token,
         default=DefaultBotProperties(parse_mode=ParseMode.HTML)
     )
+    # Кнопка меню справа от поля ввода = «команды», не Web App (sendData работает только при открытии через KeyboardButton «Открыть меню»)
+    try:
+        await bot.set_chat_menu_button(menu_button=MenuButtonDefault())
+    except Exception as e:
+        print("Предупреждение: не удалось установить кнопку меню по умолчанию:", e)
     dp = Dispatcher()
 
     # #region agent log — логируем входящие апдейты (H1). Регистрируем middleware только если API есть (aiogram 3.13 может не иметь dp.update)

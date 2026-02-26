@@ -40,7 +40,7 @@ function saveOrdersToStorage(orders: SavedOrder[]) {
 type ScreenId = 'menu' | 'size' | 'supplements' | 'profile';
 
 export default function App() {
-  const { user, showAlert, showConfirm, sendData, canSendToBot } = useTelegram();
+  const { user, showAlert, showConfirm, sendData, close: closeWebApp, canSendToBot } = useTelegram();
 
   const [menuGroup, setMenuGroup] = useState<MenuGroup | null>(null);
   const [menuLoading, setMenuLoading] = useState(true);
@@ -287,6 +287,8 @@ export default function App() {
             showAlert(
               '💳 В чат с ботом отправлено окно оплаты. Оплатите заказ там — после оплаты заказ оформится автоматически.'
             );
+            // В части клиентов Telegram данные доставляются боту только после закрытия Mini App
+            closeWebApp();
           } catch (e) {
             showAlert('Ошибка: ' + (e instanceof Error ? e.message : 'Сеть'));
           }
@@ -348,6 +350,7 @@ export default function App() {
     showConfirm,
     sendData,
     canSendToBot,
+    closeWebApp,
   ]);
 
   const showProfile = useCallback(() => goTo('profile'), [goTo]);
