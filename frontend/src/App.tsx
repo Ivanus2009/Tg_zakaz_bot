@@ -40,7 +40,7 @@ function saveOrdersToStorage(orders: SavedOrder[]) {
 type ScreenId = 'menu' | 'size' | 'supplements' | 'profile';
 
 export default function App() {
-  const { user, showAlert, showConfirm, sendData } = useTelegram();
+  const { user, showAlert, showConfirm, sendData, canSendToBot } = useTelegram();
 
   const [menuGroup, setMenuGroup] = useState<MenuGroup | null>(null);
   const [menuLoading, setMenuLoading] = useState(true);
@@ -261,6 +261,12 @@ export default function App() {
     };
 
     if (paymentMethod === 'online') {
+      if (!canSendToBot) {
+        showAlert(
+          'Оплата онлайн работает только при открытии меню из Telegram. Напишите боту и нажмите «Открыть меню» в чате — затем оформите заказ с оплатой онлайн.'
+        );
+        return;
+      }
       showConfirm('Оформить заказ с оплатой онлайн?', (confirmed) => {
         if (!confirmed) return;
         (async () => {
@@ -341,6 +347,7 @@ export default function App() {
     showAlert,
     showConfirm,
     sendData,
+    canSendToBot,
   ]);
 
   const showProfile = useCallback(() => goTo('profile'), [goTo]);

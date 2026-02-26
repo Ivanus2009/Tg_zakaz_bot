@@ -37,5 +37,7 @@ export function useTelegram() {
     showAlert: (msg: string) => tg?.showAlert(msg),
     showConfirm: (msg: string, cb: (ok: boolean) => void) => tg?.showConfirm(msg, cb),
     sendData: (data: object) => tg?.sendData(JSON.stringify(data)),
+    /** true только когда приложение открыто внутри Telegram (есть sendData в бота) */
+    canSendToBot: typeof tg?.sendData === 'function',
   };
 }
