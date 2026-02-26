@@ -53,6 +53,10 @@ from database.models import User
 
 router = Router()
 
+# #region agent log
+_debug_log("handlers module loaded", {"note": "instrumentation active"}, "H1")
+# #endregion
+
 # URL мини-приложения (будет настроен позже)
 WEBAPP_URL = os.getenv("WEBAPP_URL", "https://your-domain.com/webapp")
 
