@@ -16,12 +16,17 @@ from aiogram.enums import ParseMode
 from aiogram.types import Update
 
 # #region agent log
-def _debug_log_update(update: Update) -> None:
+def _debug_log_update(event) -> None:
     try:
         root = Path(__file__).resolve().parents[2]
         log_path = (root / "data" / "debug.log") if (str(root) == "/app") else (root / ".cursor" / "debug.log")
         log_path.parent.mkdir(parents=True, exist_ok=True)
-        msg = getattr(update, "message", None)
+        if isinstance(event, Update):
+            msg = getattr(event, "message", None)
+            update_id = getattr(event, "update_id", None)
+        else:
+            msg = event
+            update_id = getattr(event, "message_id", None)
         has_web_app_data = bool(msg and getattr(msg, "web_app_data", None))
         line = (
             json.dumps(
@@ -29,7 +34,7 @@ def _debug_log_update(update: Update) -> None:
                     "location": "bot.py",
                     "message": "incoming update",
                     "data": {
-                        "update_id": update.update_id,
+                        "update_id": update_id,
                         "has_message": msg is not None,
                         "has_web_app_data": has_web_app_data,
                     },
@@ -90,11 +95,24 @@ async def main() -> None:
     )
     dp = Dispatcher()
 
-    # #region agent log — логируем каждый апдейт, чтобы проверить приход web_app_data
-    @dp.outer_middleware()
-    async def log_updates_middleware(handler, event: Update, data: dict):
-        _debug_log_update(event)
-        return await handler(event, data)
+    # #region agent log — логируем входящие апдейты (H1). Регистрируем middleware только если API есть (aiogram 3.13 может не иметь dp.update)
+    try:
+        if hasattr(dp, "update") and hasattr(getattr(dp, "update"), "outer_middleware"):
+            @dp.update.outer_middleware()
+            async def _log_updates_mw(handler, event, data):
+                _debug_log_update(event)
+                return await handler(event, data)
+        else:
+            log_path = (ROOT_DIR / "data" / "debug.log") if (str(ROOT_DIR) == "/app") else (ROOT_DIR / ".cursor" / "debug.log")
+            log_path.parent.mkdir(parents=True, exist_ok=True)
+            with open(log_path, "a", encoding="utf-8") as f:
+                f.write(json.dumps({"message": "middleware_skipped", "reason": "no dp.update.outer_middleware"}, ensure_ascii=False) + "\n")
+    except Exception as e:
+        import traceback
+        log_path = (ROOT_DIR / "data" / "debug.log") if (str(ROOT_DIR) == "/app") else (ROOT_DIR / ".cursor" / "debug.log")
+        log_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(log_path, "a", encoding="utf-8") as f:
+            f.write(json.dumps({"message": "middleware_reg_failed", "error": str(e), "tb": traceback.format_exc()}, ensure_ascii=False) + "\n")
     # #endregion
 
     dp.include_router(router)
