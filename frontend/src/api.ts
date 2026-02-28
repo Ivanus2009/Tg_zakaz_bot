@@ -78,3 +78,21 @@ export async function preparePayment(
   });
   return res.json();
 }
+
+export interface CreateInAppPaymentResult {
+  success: boolean;
+  payment_token?: string;
+  confirmation_url?: string;
+  error?: string;
+}
+
+export async function createInAppPayment(
+  payload: PreparePaymentPayload
+): Promise<CreateInAppPaymentResult> {
+  const res = await fetch(`${API_BASE}/payment/create-inapp`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  return res.json();
+}

@@ -6,7 +6,7 @@ import { SupplementsScreen } from './components/SupplementsScreen';
 import { ProfileScreen } from './components/ProfileScreen';
 import { CartModal, type PaymentMethod } from './components/CartModal';
 import { useTelegram } from './hooks/useTelegram';
-import { fetchMenu, fetchSupplements, createOrder, preparePayment } from './api';
+import { fetchMenu, fetchSupplements, createOrder, preparePayment, createInAppPayment } from './api';
 import type {
   MenuItem,
   MenuType,
@@ -40,7 +40,7 @@ function saveOrdersToStorage(orders: SavedOrder[]) {
 type ScreenId = 'menu' | 'size' | 'supplements' | 'profile';
 
 export default function App() {
-  const { user, showAlert, showConfirm, sendData, close: closeWebApp, canSendToBot, getTelegramUser } = useTelegram();
+  const { user, showAlert, showConfirm, sendData, openLink, close: closeWebApp, canSendToBot, getTelegramUser } = useTelegram();
 
   const [menuGroup, setMenuGroup] = useState<MenuGroup | null>(null);
   const [menuLoading, setMenuLoading] = useState(true);
@@ -82,6 +82,20 @@ export default function App() {
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const success = params.get('payment_success');
+    const orderId = params.get('order_id');
+    const failed = params.get('payment_failed');
+    if (success === '1' && orderId) {
+      window.history.replaceState({}, '', window.location.pathname || '/');
+      showAlert(`✅ Заказ #${orderId} успешно оплачен! Спасибо за заказ.`);
+    } else if (failed === '1') {
+      window.history.replaceState({}, '', window.location.pathname || '/');
+      showAlert('Оплата не прошла или была отменена. Попробуйте снова или выберите «Оплата при получении».');
+    }
+  }, [showAlert]);
 
   const goTo = useCallback((next: ScreenId, addToHistory = true) => {
     if (addToHistory && screen !== next) {
@@ -265,36 +279,26 @@ export default function App() {
     };
 
     if (paymentMethod === 'online') {
-      if (!canSendToBot) {
-        showAlert(NO_USER_MESSAGE + '\n\nОплата картой возможна только при открытии из чата с ботом.');
-        return;
-      }
-      if (!currentUser?.id) {
-        showAlert(NO_USER_MESSAGE + '\n\nДля оплаты картой нужен ваш аккаунт Telegram.');
-        return;
-      }
-      showConfirm('Оформить заказ с оплатой онлайн?', (confirmed) => {
+      showConfirm('Оформить заказ с оплатой картой?', (confirmed) => {
         if (!confirmed) return;
         (async () => {
           try {
-            const result = await preparePayment(baseOrderPayload);
-            if (!result.success || !result.payment_token) {
-              showAlert('Ошибка: ' + (result.error || 'Не удалось подготовить платёж'));
+            const result = await createInAppPayment(baseOrderPayload);
+            if (!result.success) {
+              showAlert(result.error || 'Не удалось создать платёж');
               return;
             }
-            sendData({
-              action: 'request_payment',
-              payment_token: result.payment_token,
-            });
+            const url = result.confirmation_url;
+            if (!url) {
+              showAlert('Ошибка: нет ссылки на оплату');
+              return;
+            }
             setCart([]);
             setCartOpen(false);
             setScreenHistory([]);
             setScreen('menu');
-            showAlert(
-              '💳 В чат с ботом отправлено окно оплаты. Оплатите заказ там — после оплаты заказ оформится автоматически.'
-            );
-            // В части клиентов Telegram данные доставляются боту только после закрытия Mini App
-            closeWebApp();
+            showAlert('Откроется страница оплаты. После оплаты вы вернётесь в приложение.');
+            openLink(url);
           } catch (e) {
             showAlert('Ошибка: ' + (e instanceof Error ? e.message : 'Сеть'));
           }
@@ -355,8 +359,7 @@ export default function App() {
     showAlert,
     showConfirm,
     sendData,
-    canSendToBot,
-    closeWebApp,
+    openLink,
     getTelegramUser,
   ]);
 

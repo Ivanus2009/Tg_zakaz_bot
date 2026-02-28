@@ -257,11 +257,12 @@ async def handle_successful_payment(message: Message) -> None:
         await message.answer("❌ Ошибка настройки. Заказ не создан. Обратитесь в поддержку.")
         return
     base = _backend_url()
+    chat_id = message.chat.id
     async with httpx.AsyncClient(timeout=15.0) as client:
         r = await client.post(
             f"{base}/api/order-from-payment",
             headers={"X-Bot-Secret": secret, "Content-Type": "application/json"},
-            json={"payment_token": payload},
+            json={"payment_token": payload, "telegram_id": chat_id},
         )
     if r.status_code != 200:
         await message.answer(

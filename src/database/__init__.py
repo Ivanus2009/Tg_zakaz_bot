@@ -12,6 +12,7 @@ from .db import (
     create_pending_payment,
     get_pending_payment,
     delete_pending_payment,
+    set_pending_yookassa_id,
 )
 
 __all__ = [
@@ -26,5 +27,6 @@ __all__ = [
     "create_pending_payment",
     "get_pending_payment",
     "delete_pending_payment",
+    "set_pending_yookassa_id",
 ]
 

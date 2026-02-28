@@ -46,7 +46,7 @@ async def init_db() -> None:
             )
         """)
 
-        # Ожидающие онлайн-оплаты (корзина до отправки инвойса)
+        # Ожидающие онлайн-оплаты (корзина до отправки инвойса / ЮKassa)
         await db.execute("""
             CREATE TABLE IF NOT EXISTS pending_payments (
                 payment_token TEXT PRIMARY KEY,
@@ -55,10 +55,14 @@ async def init_db() -> None:
                 total REAL NOT NULL,
                 client_json TEXT,
                 comment TEXT,
-                created_at TEXT NOT NULL
+                created_at TEXT NOT NULL,
+                yookassa_payment_id TEXT
             )
         """)
-
+        try:
+            await db.execute("ALTER TABLE pending_payments ADD COLUMN yookassa_payment_id TEXT")
+        except Exception:
+            pass
         await db.commit()
 
 
@@ -185,13 +189,23 @@ async def get_pending_payment(payment_token: str) -> Optional[dict]:
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
         async with db.execute(
-            "SELECT payment_token, telegram_id, items_json, total, client_json, comment FROM pending_payments WHERE payment_token = ?",
+            "SELECT payment_token, telegram_id, items_json, total, client_json, comment, yookassa_payment_id FROM pending_payments WHERE payment_token = ?",
             (payment_token,),
         ) as cursor:
             row = await cursor.fetchone()
             if not row:
                 return None
             return dict(row)
+
+
+async def set_pending_yookassa_id(payment_token: str, yookassa_payment_id: str) -> None:
+    """Сохранить id платежа ЮKassa для ожидающего платежа."""
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            "UPDATE pending_payments SET yookassa_payment_id = ? WHERE payment_token = ?",
+            (yookassa_payment_id, payment_token),
+        )
+        await db.commit()
 
 
 async def delete_pending_payment(payment_token: str) -> None:
