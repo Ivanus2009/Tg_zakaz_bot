@@ -6,7 +6,7 @@ import { SupplementsScreen } from './components/SupplementsScreen';
 import { ProfileScreen } from './components/ProfileScreen';
 import { CartModal, type PaymentMethod } from './components/CartModal';
 import { useTelegram } from './hooks/useTelegram';
-import { fetchMenu, fetchSupplements, createOrder, preparePayment, createInAppPayment } from './api';
+import { fetchMenu, fetchSupplements, createOrder, createInAppPayment } from './api';
 import type {
   MenuItem,
   MenuType,
@@ -40,7 +40,7 @@ function saveOrdersToStorage(orders: SavedOrder[]) {
 type ScreenId = 'menu' | 'size' | 'supplements' | 'profile';
 
 export default function App() {
-  const { user, showAlert, showConfirm, sendData, openLink, close: closeWebApp, canSendToBot, getTelegramUser } = useTelegram();
+  const { user, showAlert, showConfirm, sendData, openLink, getTelegramUser } = useTelegram();
 
   const [menuGroup, setMenuGroup] = useState<MenuGroup | null>(null);
   const [menuLoading, setMenuLoading] = useState(true);
@@ -250,9 +250,6 @@ export default function App() {
   const removeFromCart = useCallback((index: number) => {
     setCart((c) => c.filter((_, i) => i !== index));
   }, []);
-
-  const NO_USER_MESSAGE =
-    'Откройте меню из чата с ботом: нажмите кнопку «Открыть меню» под полем ввода. Затем снова оформите заказ.';
 
   const checkout = useCallback(() => {
     if (cart.length === 0) {
