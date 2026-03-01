@@ -56,11 +56,36 @@ async def init_db() -> None:
                 client_json TEXT,
                 comment TEXT,
                 created_at TEXT NOT NULL,
-                yookassa_payment_id TEXT
+                yookassa_payment_id TEXT,
+                site_user_id INTEGER,
+                link_card_only INTEGER NOT NULL DEFAULT 0
             )
         """)
         try:
             await db.execute("ALTER TABLE pending_payments ADD COLUMN yookassa_payment_id TEXT")
+        except Exception:
+            pass
+        try:
+            await db.execute("ALTER TABLE pending_payments ADD COLUMN site_user_id INTEGER")
+        except Exception:
+            pass
+        try:
+            await db.execute("ALTER TABLE pending_payments ADD COLUMN link_card_only INTEGER NOT NULL DEFAULT 0")
+        except Exception:
+            pass
+        # Пользователи сайта (телефон + пароль)
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS site_users (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                phone TEXT UNIQUE NOT NULL,
+                password_hash TEXT NOT NULL,
+                name TEXT,
+                created_at TEXT NOT NULL,
+                saved_payment_method_id TEXT
+            )
+        """)
+        try:
+            await db.execute("ALTER TABLE site_users ADD COLUMN saved_payment_method_id TEXT")
         except Exception:
             pass
         await db.commit()
@@ -171,15 +196,17 @@ async def create_pending_payment(
     total: float,
     client_json: str = "{}",
     comment: str = "",
+    site_user_id: int | None = None,
+    link_card_only: bool = False,
 ) -> None:
-    """Сохранить ожидающий платёж (корзина для Telegram Invoice)."""
+    """Сохранить ожидающий платёж (корзина для ЮKassa / Telegram Invoice). link_card_only=True — только привязка карты, заказ не создаём."""
     now = datetime.utcnow().isoformat()
     async with aiosqlite.connect(DB_PATH) as conn:
         await conn.execute(
             """INSERT INTO pending_payments
-               (payment_token, telegram_id, items_json, total, client_json, comment, created_at)
-               VALUES (?, ?, ?, ?, ?, ?, ?)""",
-            (payment_token, telegram_id, items_json, total, client_json, comment or "", now),
+               (payment_token, telegram_id, items_json, total, client_json, comment, created_at, site_user_id, link_card_only)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (payment_token, telegram_id, items_json, total, client_json, comment or "", now, site_user_id, 1 if link_card_only else 0),
         )
         await conn.commit()
 
@@ -189,7 +216,7 @@ async def get_pending_payment(payment_token: str) -> Optional[dict]:
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
         async with db.execute(
-            "SELECT payment_token, telegram_id, items_json, total, client_json, comment, yookassa_payment_id FROM pending_payments WHERE payment_token = ?",
+            "SELECT payment_token, telegram_id, items_json, total, client_json, comment, yookassa_payment_id, site_user_id, link_card_only FROM pending_payments WHERE payment_token = ?",
             (payment_token,),
         ) as cursor:
             row = await cursor.fetchone()
@@ -212,5 +239,55 @@ async def delete_pending_payment(payment_token: str) -> None:
     """Удалить ожидающий платёж после создания заказа."""
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute("DELETE FROM pending_payments WHERE payment_token = ?", (payment_token,))
+        await db.commit()
+
+
+async def create_site_user(phone: str, password_hash: str, name: str | None = None) -> dict | None:
+    """Создать пользователя сайта. Возвращает dict с id, phone, name, created_at или None если телефон занят."""
+    now = datetime.utcnow().isoformat()
+    try:
+        async with aiosqlite.connect(DB_PATH) as db:
+            cursor = await db.execute(
+                """INSERT INTO site_users (phone, password_hash, name, created_at)
+                   VALUES (?, ?, ?, ?)""",
+                (phone.strip(), password_hash, (name or "").strip() or None, now),
+            )
+            await db.commit()
+            return {"id": cursor.lastrowid, "phone": phone.strip(), "name": (name or "").strip() or None, "created_at": now}
+    except aiosqlite.IntegrityError:
+        return None
+
+
+async def get_site_user_by_phone(phone: str) -> dict | None:
+    """Получить пользователя сайта по телефону (включая password_hash для проверки)."""
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(
+            "SELECT id, phone, password_hash, name, created_at FROM site_users WHERE phone = ?",
+            (phone.strip(),),
+        ) as cursor:
+            row = await cursor.fetchone()
+            return dict(row) if row else None
+
+
+async def get_site_user_by_id(user_id: int) -> dict | None:
+    """Получить пользователя сайта по id (без password_hash для ответов API)."""
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(
+            "SELECT id, phone, name, created_at, saved_payment_method_id FROM site_users WHERE id = ?",
+            (user_id,),
+        ) as cursor:
+            row = await cursor.fetchone()
+            return dict(row) if row else None
+
+
+async def update_site_user_saved_payment_method(site_user_id: int, payment_method_id: str) -> None:
+    """Привязать сохранённый способ оплаты ЮKassa к аккаунту пользователя."""
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            "UPDATE site_users SET saved_payment_method_id = ? WHERE id = ?",
+            (payment_method_id.strip(), site_user_id),
+        )
         await db.commit()
 

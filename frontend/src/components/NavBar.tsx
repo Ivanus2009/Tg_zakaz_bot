@@ -18,6 +18,9 @@ interface NavBarProps {
   onBack: () => void;
   onProfile: () => void;
   onCart: () => void;
+  siteUser?: { name?: string | null; phone: string } | null;
+  onLoginClick: () => void;
+  onLogout: () => void;
 }
 
 export function NavBar({
@@ -26,6 +29,9 @@ export function NavBar({
   onBack,
   onProfile,
   onCart,
+  siteUser,
+  onLoginClick,
+  onLogout,
 }: NavBarProps) {
   const showBack = ["size", "supplements", "profile"].includes(screen);
 
@@ -47,12 +53,21 @@ export function NavBar({
         {stepHint ? <div className="nav-step">{stepHint}</div> : null}
       </div>
       <div className="nav-buttons">
-        <button
-          type="button"
-          className="nav-btn"
-          onClick={onProfile}
-          title="Профиль"
-        >
+        {siteUser ? (
+          <>
+            <span className="nav-auth-btn" title={siteUser.phone}>
+              {siteUser.name || siteUser.phone}
+            </span>
+            <button type="button" className="nav-btn nav-auth-btn" onClick={onLogout} title="Выйти">
+              Выйти
+            </button>
+          </>
+        ) : (
+          <button type="button" className="nav-btn nav-auth-btn" onClick={onLoginClick} title="Войти">
+            Войти
+          </button>
+        )}
+        <button type="button" className="nav-btn" onClick={onProfile} title="Профиль">
           👤
         </button>
         <div className="cart-btn-wrapper">

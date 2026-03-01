@@ -13,6 +13,10 @@ from .db import (
     get_pending_payment,
     delete_pending_payment,
     set_pending_yookassa_id,
+    create_site_user,
+    get_site_user_by_phone,
+    get_site_user_by_id,
+    update_site_user_saved_payment_method,
 )
 
 __all__ = [
@@ -28,5 +32,9 @@ __all__ = [
     "get_pending_payment",
     "delete_pending_payment",
     "set_pending_yookassa_id",
+    "create_site_user",
+    "get_site_user_by_phone",
+    "get_site_user_by_id",
+    "update_site_user_saved_payment_method",
 ]
 

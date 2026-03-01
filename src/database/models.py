@@ -21,6 +21,16 @@ class User:
 
 
 @dataclass
+class SiteUser:
+    """Пользователь сайта (регистрация по телефону + пароль)."""
+
+    id: int
+    phone: str
+    name: Optional[str] = None
+    created_at: Optional[datetime] = None
+
+
+@dataclass
 class CartItem:
     """Элемент корзины."""
 

@@ -76,25 +76,56 @@ export function useTelegram() {
   const tg = typeof window !== 'undefined' ? window.Telegram?.WebApp : undefined;
 
   if (tg) {
-    tg.ready();
-    tg.expand();
+    try {
+      tg.ready?.();
+      tg.expand?.();
+    } catch {
+      // ignore
+    }
   }
 
   const user = getTelegramUser();
 
+  // В Mini App в Telegram можно было бы вызывать tg.showAlert/tg.showConfirm,
+  // но в старых версиях (6.0) они используют showPopup и падают. Используем браузерные алерты.
+  const showAlert = (msg: string) => {
+    window.alert(msg);
+  };
+
+  const showConfirm = (msg: string, cb: (ok: boolean) => void) => {
+    cb(window.confirm(msg));
+  };
+
+  const openLink = (url: string) => {
+    try {
+      if (typeof tg?.openLink === 'function') tg.openLink(url);
+      else window.location.href = url;
+    } catch {
+      window.location.href = url;
+    }
+  };
+
   return {
     tg,
     user,
-    /** Актуальный user при каждом вызове (для проверки перед отправкой заказа) */
     getTelegramUser,
-    showAlert: (msg: string) => tg?.showAlert(msg),
-    showConfirm: (msg: string, cb: (ok: boolean) => void) => tg?.showConfirm(msg, cb),
-    sendData: (data: object) => tg?.sendData(JSON.stringify(data)),
-    /** Открыть ссылку (в Mini App — в том же окне или во внешнем браузере) */
-    openLink: (url: string) => tg?.openLink?.(url) ?? window.open(url, '_blank'),
-    /** Закрыть Mini App (после sendData данные в части клиентов доставляются только после close) */
-    close: () => tg?.close?.(),
-    /** true только когда приложение открыто внутри Telegram (есть sendData в бота) */
+    showAlert,
+    showConfirm,
+    sendData: (data: object) => {
+      try {
+        if (tg?.sendData) tg.sendData(JSON.stringify(data));
+      } catch {
+        // ignore
+      }
+    },
+    openLink,
+    close: () => {
+      try {
+        tg?.close?.();
+      } catch {
+        // ignore
+      }
+    },
     canSendToBot: typeof tg?.sendData === 'function',
   };
 }

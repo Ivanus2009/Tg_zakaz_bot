@@ -5,8 +5,10 @@ import { SizeScreen } from './components/SizeScreen';
 import { SupplementsScreen } from './components/SupplementsScreen';
 import { ProfileScreen } from './components/ProfileScreen';
 import { CartModal, type PaymentMethod } from './components/CartModal';
+import { AuthModal } from './components/AuthModal';
 import { useTelegram } from './hooks/useTelegram';
-import { fetchMenu, fetchSupplements, createOrder, createInAppPayment } from './api';
+import { fetchMenu, fetchSupplements, createOrder, createInAppPayment, getMe, setStoredToken } from './api';
+import type { AuthUser } from './api';
 import type {
   MenuItem,
   MenuType,
@@ -40,7 +42,7 @@ function saveOrdersToStorage(orders: SavedOrder[]) {
 type ScreenId = 'menu' | 'size' | 'supplements' | 'profile';
 
 export default function App() {
-  const { user, showAlert, showConfirm, sendData, openLink, getTelegramUser } = useTelegram();
+  const { user, showAlert, showConfirm, sendData, openLink, getTelegramUser, canSendToBot } = useTelegram();
 
   const [menuGroup, setMenuGroup] = useState<MenuGroup | null>(null);
   const [menuLoading, setMenuLoading] = useState(true);
@@ -59,6 +61,10 @@ export default function App() {
   const [selectedSupplements, setSelectedSupplements] = useState<Record<string, boolean>>({});
   const [orderComment, setOrderComment] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash');
+  const [clientName, setClientName] = useState('');
+  const [clientPhone, setClientPhone] = useState('');
+  const [siteUser, setSiteUser] = useState<AuthUser | null>(null);
+  const [authModalOpen, setAuthModalOpen] = useState(false);
 
   const menuItems = menuGroup?.itemList ?? [];
 
@@ -84,6 +90,13 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    (async () => {
+      const res = await getMe();
+      if (res.success && res.user) setSiteUser(res.user);
+    })();
+  }, []);
+
+  useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const success = params.get('payment_success');
     const orderId = params.get('order_id');
@@ -94,8 +107,26 @@ export default function App() {
     } else if (failed === '1') {
       window.history.replaceState({}, '', window.location.pathname || '/');
       showAlert('Оплата не прошла или была отменена. Попробуйте снова или выберите «Оплата при получении».');
+    } else if (params.get('card_linked') === '1') {
+      window.history.replaceState({}, '', window.location.pathname || '/');
+      showAlert('Карта успешно привязана к аккаунту.');
     }
   }, [showAlert]);
+
+  useEffect(() => {
+    const tgUser = getTelegramUser?.();
+    if (tgUser) {
+      setClientName((n) => n || tgUser.first_name || '');
+      setClientPhone((p) => p || (tgUser as { phone?: string }).phone || '');
+    }
+  }, [getTelegramUser]);
+
+  useEffect(() => {
+    if (siteUser) {
+      setClientName((n) => n || siteUser.name || '');
+      setClientPhone((p) => p || siteUser.phone || '');
+    }
+  }, [siteUser]);
 
   const goTo = useCallback((next: ScreenId, addToHistory = true) => {
     if (addToHistory && screen !== next) {
@@ -256,6 +287,16 @@ export default function App() {
       showAlert('Корзина пуста');
       return;
     }
+    const name = clientName.trim();
+    const phone = clientPhone.trim();
+    if (!name) {
+      showAlert('Укажите имя');
+      return;
+    }
+    if (!phone) {
+      showAlert('Укажите телефон');
+      return;
+    }
     const currentUser = getTelegramUser?.() ?? user;
     const total = cartTotal;
     const baseOrderPayload = {
@@ -266,11 +307,7 @@ export default function App() {
         priceWithDiscount: item.priceWithDiscount,
         quantity: item.quantity,
       })),
-      client: {
-        name: currentUser?.first_name || 'Пользователь',
-        phone: (currentUser as { phone?: string })?.phone || '',
-        email: '',
-      },
+      client: { name, phone, email: '' },
       comment: orderComment.trim() || undefined,
       telegramUserId: currentUser?.id,
     };
@@ -326,12 +363,14 @@ export default function App() {
               saveOrdersToStorage(next);
               return next;
             });
-            sendData({
-              action: 'order_created',
-              order_id: result.order_id,
-              total,
-              paid: false,
-            });
+            if (canSendToBot) {
+              sendData({
+                action: 'order_created',
+                order_id: result.order_id,
+                total,
+                paid: false,
+              });
+            }
             setCart([]);
             setCartOpen(false);
             setScreenHistory([]);
@@ -351,6 +390,8 @@ export default function App() {
     cart,
     cartTotal,
     user,
+    clientName,
+    clientPhone,
     orderComment,
     paymentMethod,
     showAlert,
@@ -358,9 +399,14 @@ export default function App() {
     sendData,
     openLink,
     getTelegramUser,
+    canSendToBot,
   ]);
 
   const showProfile = useCallback(() => goTo('profile'), [goTo]);
+  const handleLogout = useCallback(() => {
+    setStoredToken(null);
+    setSiteUser(null);
+  }, []);
 
   return (
     <>
@@ -370,6 +416,9 @@ export default function App() {
         onBack={goBack}
         onProfile={showProfile}
         onCart={() => setCartOpen(true)}
+        siteUser={siteUser}
+        onLoginClick={() => setAuthModalOpen(true)}
+        onLogout={handleLogout}
       />
 
       {screen === 'menu' && (
@@ -407,8 +456,19 @@ export default function App() {
 
       {screen === 'profile' && (
         <ProfileScreen
-          userName={user?.first_name || 'Пользователь'}
+          userName={siteUser?.name || siteUser?.phone || user?.first_name || 'Пользователь'}
           orders={orders}
+          siteUser={siteUser}
+          onLinkCard={
+            siteUser
+              ? async () => {
+                  const { linkCard } = await import('./api');
+                  const r = await linkCard();
+                  if (r.success && r.confirmation_url) openLink(r.confirmation_url);
+                  else showAlert(r.error || 'Ошибка привязки карты');
+                }
+              : undefined
+          }
         />
       )}
 
@@ -416,6 +476,10 @@ export default function App() {
         isOpen={cartOpen}
         items={cart}
         total={cartTotal}
+        clientName={clientName}
+        clientPhone={clientPhone}
+        onClientNameChange={setClientName}
+        onClientPhoneChange={setClientPhone}
         comment={orderComment}
         paymentMethod={paymentMethod}
         onPaymentMethodChange={setPaymentMethod}
@@ -423,6 +487,11 @@ export default function App() {
         onClose={() => setCartOpen(false)}
         onCheckout={checkout}
         onRemoveItem={removeFromCart}
+      />
+      <AuthModal
+        isOpen={authModalOpen}
+        onClose={() => setAuthModalOpen(false)}
+        onSuccess={() => getMe().then((r) => r.success && r.user && setSiteUser(r.user))}
       />
     </>
   );

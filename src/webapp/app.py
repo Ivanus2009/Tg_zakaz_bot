@@ -5,17 +5,21 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+import re
 import sys
+import time
 import uuid
 from pathlib import Path
 
 import base64
 import httpx
+import jwt
 from dotenv import load_dotenv
 from fastapi import FastAPI, Header, Request
 from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from passlib.hash import bcrypt
 
 # Добавляем src в путь
 ROOT_DIR = Path(__file__).resolve().parents[2]
@@ -29,16 +33,68 @@ load_dotenv(ROOT_DIR / ".env")
 from database import (
     create_order as db_create_order,
     create_pending_payment,
+    create_site_user,
     delete_pending_payment,
     get_order_by_ytimes_guid,
     get_pending_payment,
+    get_site_user_by_id,
+    get_site_user_by_phone,
     init_db,
     set_pending_yookassa_id,
     update_order_status,
+    update_site_user_saved_payment_method,
 )
 from ytimes import YTimesAPIClient, YTimesAPIError
 
+from .payment_log import log as payment_log
+
 BOT_SECRET_HEADER = "X-Bot-Secret"
+AUTH_JWT_SECRET = os.getenv("AUTH_JWT_SECRET", os.getenv("BOT_INTERNAL_SECRET", "change-me")).strip()
+AUTH_JWT_ALGORITHM = "HS256"
+AUTH_JWT_EXP_SECONDS = 30 * 24 * 3600  # 30 дней
+
+# Ограничение запросов к auth (защита от брутфорса): макс. запросов с одного IP в минуту
+_AUTH_RATE_LIMIT: dict[str, list[float]] = {}
+_AUTH_RATE_LIMIT_MAX = 10
+_AUTH_RATE_LIMIT_WINDOW = 60.0  # секунд
+
+
+def _auth_rate_limit_check(client_host: str) -> bool:
+    """True если лимит не превышен, иначе False."""
+    now = time.time()
+    key = (client_host or "unknown").strip() or "unknown"
+    if key not in _AUTH_RATE_LIMIT:
+        _AUTH_RATE_LIMIT[key] = []
+    times = _AUTH_RATE_LIMIT[key]
+    times[:] = [t for t in times if now - t < _AUTH_RATE_LIMIT_WINDOW]
+    if len(times) >= _AUTH_RATE_LIMIT_MAX:
+        return False
+    times.append(now)
+    return True
+
+
+def _normalize_phone(phone: str) -> str:
+    """Оставить только цифры от телефона."""
+    return re.sub(r"\D", "", phone or "").strip() or ""
+
+
+async def _get_auth_user(authorization: str | None = Header(None)) -> dict | None:
+    """Из заголовка Authorization: Bearer <token> вернуть site_user dict или None."""
+    if not authorization or not authorization.startswith("Bearer "):
+        return None
+    token = authorization[7:].strip()
+    if not token or not AUTH_JWT_SECRET:
+        return None
+    try:
+        payload = jwt.decode(token, AUTH_JWT_SECRET, algorithms=[AUTH_JWT_ALGORITHM])
+        user_id = payload.get("sub")
+        if not user_id:
+            return None
+        user = await get_site_user_by_id(int(user_id))
+        return user
+    except Exception:
+        return None
+
 
 # Хранилище меню и добавок — заполняется только фоновой задачей раз в 20 мин (лимит YTimes 10/час)
 _MENU_REFRESH_INTERVAL = 20 * 60  # секунд
@@ -148,8 +204,75 @@ def _build_ytimes_items(items: list) -> list:
     return out
 
 
+@app.post("/api/auth/register")
+async def api_auth_register(request: Request):
+    """Регистрация: телефон + пароль, опционально имя. Защита: rate limit, пароль не менее 8 символов."""
+    if not _auth_rate_limit_check(request.client.host if request.client else ""):
+        payment_log("auth_register_rate_limit", host=request.client.host if request.client else "")
+        return JSONResponse({"success": False, "error": "Слишком много попыток. Подождите минуту."}, status_code=429)
+    try:
+        data = await request.json()
+        phone = _normalize_phone(data.get("phone") or "")
+        password = (data.get("password") or "").strip()
+        name = (data.get("name") or "").strip() or None
+        if len(phone) < 10:
+            return JSONResponse({"success": False, "error": "Введите корректный телефон"}, status_code=400)
+        if len(password) < 8:
+            return JSONResponse({"success": False, "error": "Пароль не менее 8 символов"}, status_code=400)
+        password_hash = bcrypt.hash(password)
+        user = await create_site_user(phone=phone, password_hash=password_hash, name=name)
+        if not user:
+            payment_log("auth_register_fail", reason="phone_taken", phone_len=len(phone))
+            return JSONResponse({"success": False, "error": "Этот телефон уже зарегистрирован"}, status_code=409)
+        payload = {"sub": user["id"], "exp": int(time.time()) + AUTH_JWT_EXP_SECONDS}
+        token = jwt.encode(payload, AUTH_JWT_SECRET, algorithm=AUTH_JWT_ALGORITHM)
+        return JSONResponse({
+            "success": True,
+            "token": token,
+            "user": {"id": user["id"], "phone": user["phone"], "name": user.get("name")},
+        })
+    except Exception as e:
+        return JSONResponse({"success": False, "error": str(e)}, status_code=500)
+
+
+@app.post("/api/auth/login")
+async def api_auth_login(request: Request):
+    """Вход: телефон + пароль, возврат JWT. Защита: rate limit."""
+    if not _auth_rate_limit_check(request.client.host if request.client else ""):
+        payment_log("auth_login_rate_limit", host=request.client.host if request.client else "")
+        return JSONResponse({"success": False, "error": "Слишком много попыток. Подождите минуту."}, status_code=429)
+    try:
+        data = await request.json()
+        phone = _normalize_phone(data.get("phone") or "")
+        password = (data.get("password") or "").strip()
+        if not phone or not password:
+            return JSONResponse({"success": False, "error": "Введите телефон и пароль"}, status_code=400)
+        user = await get_site_user_by_phone(phone)
+        if not user or not bcrypt.verify(password, user.get("password_hash") or ""):
+            payment_log("auth_login_fail", reason="bad_credentials", phone_len=len(phone))
+            return JSONResponse({"success": False, "error": "Неверный телефон или пароль"}, status_code=401)
+        payload = {"sub": user["id"], "exp": int(time.time()) + AUTH_JWT_EXP_SECONDS}
+        token = jwt.encode(payload, AUTH_JWT_SECRET, algorithm=AUTH_JWT_ALGORITHM)
+        return JSONResponse({
+            "success": True,
+            "token": token,
+            "user": {"id": user["id"], "phone": user["phone"], "name": user.get("name")},
+        })
+    except Exception as e:
+        return JSONResponse({"success": False, "error": str(e)}, status_code=500)
+
+
+@app.get("/api/auth/me")
+async def api_auth_me(authorization: str | None = Header(None)):
+    """Текущий пользователь по JWT (для подстановки в форму заказа)."""
+    user = await _get_auth_user(authorization)
+    if not user:
+        return JSONResponse({"success": False, "error": "Не авторизован"}, status_code=401)
+    return JSONResponse({"success": True, "user": user})
+
+
 @app.post("/api/order")
-async def api_create_order(request: Request):
+async def api_create_order(request: Request, authorization: str | None = Header(None)):
     """Создать заказ и отправить на кассу YTimes."""
     try:
         data = await request.json()
@@ -160,6 +283,17 @@ async def api_create_order(request: Request):
         total = sum(item.get("priceWithDiscount", 0) * item.get("quantity", 1) for item in items)
         order_guid = str(uuid.uuid4())
         client = data.get("client") or {}
+        auth_user = await _get_auth_user(authorization)
+        if auth_user:
+            client = {
+                "name": (client.get("name") or "").strip() or (auth_user.get("name") or auth_user.get("phone") or "Пользователь"),
+                "phone": (client.get("phone") or "").strip() or (auth_user.get("phone") or ""),
+                "email": (client.get("email") or "").strip(),
+            }
+        if not (client.get("name") or str(client.get("name", "")).strip()):
+            return JSONResponse({"success": False, "error": "Укажите имя"}, status_code=400)
+        if not (client.get("phone") or str(client.get("phone", "")).strip()):
+            return JSONResponse({"success": False, "error": "Укажите телефон"}, status_code=400)
         comment = (data.get("comment") or "").strip()
         paid_value_raw = data.get("paidValue")
         paid_value = None if paid_value_raw is None or paid_value_raw == 0 else float(paid_value_raw)
@@ -248,8 +382,9 @@ async def _yookassa_create_payment(
     description: str,
     return_url: str,
     metadata: dict,
+    save_payment_method: bool = False,
 ) -> dict | None:
-    """Создать платёж в ЮKassa. Возвращает ответ API или None при ошибке."""
+    """Создать платёж в ЮKassa. save_payment_method=True — привязка карты для повторных списаний."""
     creds = _yookassa_auth()
     if not creds:
         return None
@@ -263,6 +398,8 @@ async def _yookassa_create_payment(
         "capture": True,
         "metadata": metadata,
     }
+    if save_payment_method:
+        payload["save_payment_method"] = True
     async with httpx.AsyncClient(timeout=15.0) as client:
         r = await client.post(
             "https://api.yookassa.ru/v3/payments",
@@ -316,42 +453,50 @@ async def api_payment_prepare(request: Request):
             client_json=json.dumps(client),
             comment=comment,
         )
-        # #region agent log — фиксируем, что фронт дошёл до успешной подготовки платежа (перед вызовом sendData)
-        try:
-            from pathlib import Path
-            _root = Path(__file__).resolve().parents[2]
-            _log_path = (_root / "data" / "debug.log") if str(_root) == "/app" else (_root / ".cursor" / "debug.log")
-            _log_path.parent.mkdir(parents=True, exist_ok=True)
-            with open(_log_path, "a", encoding="utf-8") as _f:
-                _f.write(json.dumps({"location": "webapp app.py", "message": "payment_prepare_success", "data": {"telegram_id": telegram_id, "total": total}, "hypothesisId": "H2", "timestamp": int(__import__("time").time() * 1000)}, ensure_ascii=False) + "\n")
-        except Exception:
-            pass
-        # #endregion
+        payment_log("payment_prepare_ok", payment_token=payment_token, total=total)
         return JSONResponse({"success": True, "payment_token": payment_token})
     except Exception as e:
         return JSONResponse({"success": False, "error": str(e)}, status_code=500)
 
 
 @app.post("/api/payment/create-inapp")
-async def api_payment_create_inapp(request: Request):
+async def api_payment_create_inapp(request: Request, authorization: str | None = Header(None)):
     """Создать платёж ЮKassa для оплаты внутри Mini App. Возвращает confirmation_url для перехода."""
+    payment_token = None
     try:
         data = await request.json()
         items = data.get("items", [])
         if not items:
+            payment_log("create_inapp_reject", reason="empty_cart")
             return JSONResponse({"success": False, "error": "Пустая корзина"}, status_code=400)
         total = sum(item.get("priceWithDiscount", 0) * item.get("quantity", 1) for item in items)
         if total <= 0:
+            payment_log("create_inapp_reject", reason="invalid_total", total=total)
             return JSONResponse({"success": False, "error": "Некорректная сумма"}, status_code=400)
+        client = data.get("client") or {}
+        auth_user = await _get_auth_user(authorization)
+        if auth_user:
+            client = {
+                "name": (client.get("name") or "").strip() or (auth_user.get("name") or auth_user.get("phone") or "Пользователь"),
+                "phone": (client.get("phone") or "").strip() or (auth_user.get("phone") or ""),
+                "email": (client.get("email") or "").strip(),
+            }
+        if not (client.get("name") or str(client.get("name", "")).strip()):
+            payment_log("create_inapp_reject", reason="no_name")
+            return JSONResponse({"success": False, "error": "Укажите имя"}, status_code=400)
+        if not (client.get("phone") or str(client.get("phone", "")).strip()):
+            payment_log("create_inapp_reject", reason="no_phone")
+            return JSONResponse({"success": False, "error": "Укажите телефон"}, status_code=400)
         if not _yookassa_auth():
+            payment_log("create_inapp_reject", reason="yookassa_not_configured")
             return JSONResponse(
                 {"success": False, "error": "Оплата в приложении не настроена (ЮKassa). Выберите «Оплата при получении» или оплату через бота."},
                 status_code=503,
             )
         telegram_id = int(data.get("telegramUserId") or 0)
-        client = data.get("client") or {}
         comment = (data.get("comment") or "").strip()
         payment_token = uuid.uuid4().hex
+        site_user_id = auth_user.get("id") if auth_user else None
         await create_pending_payment(
             payment_token=payment_token,
             telegram_id=telegram_id,
@@ -359,9 +504,12 @@ async def api_payment_create_inapp(request: Request):
             total=total,
             client_json=json.dumps(client),
             comment=comment,
+            site_user_id=site_user_id,
         )
+        payment_log("create_inapp_pending_created", payment_token=payment_token, total=total, site_user_id=site_user_id)
         webapp_url = (os.getenv("WEBAPP_URL") or "").rstrip("/")
         if not webapp_url:
+            payment_log("create_inapp_reject", reason="no_webapp_url")
             return JSONResponse({"success": False, "error": "WEBAPP_URL не задан"}, status_code=500)
         return_url = f"{webapp_url}/api/payment/return?payment_token={payment_token}"
         yookassa_resp = await _yookassa_create_payment(
@@ -371,44 +519,72 @@ async def api_payment_create_inapp(request: Request):
             metadata={"payment_token": payment_token},
         )
         if not yookassa_resp or yookassa_resp.get("status") not in ("pending", "waiting_for_capture"):
+            payment_log("create_inapp_yookassa_fail", payment_token=payment_token, yookassa_status=yookassa_resp.get("status") if yookassa_resp else None)
             return JSONResponse({"success": False, "error": "Не удалось создать платёж. Попробуйте позже."}, status_code=502)
         yookassa_id = yookassa_resp.get("id")
         confirmation = yookassa_resp.get("confirmation") or {}
         confirmation_url = confirmation.get("confirmation_url")
         if not yookassa_id or not confirmation_url:
+            payment_log("create_inapp_yookassa_no_url", payment_token=payment_token, yookassa_id=yookassa_id)
             return JSONResponse({"success": False, "error": "Ошибка ответа платёжной системы."}, status_code=502)
         await set_pending_yookassa_id(payment_token, yookassa_id)
+        payment_log("create_inapp_ok", payment_token=payment_token, yookassa_id=yookassa_id, total=total)
         return JSONResponse({
             "success": True,
             "payment_token": payment_token,
             "confirmation_url": confirmation_url,
         })
     except Exception as e:
+        payment_log("create_inapp_error", payment_token=payment_token, error=str(e))
         return JSONResponse({"success": False, "error": str(e)}, status_code=500)
 
 
 @app.get("/api/payment/return")
 async def api_payment_return(payment_token: str):
     """Возврат пользователя после оплаты ЮKassa. Проверяем статус, создаём заказ, редирект в приложение."""
+    payment_log("return_start", payment_token=payment_token or "")
     webapp_url = (os.getenv("WEBAPP_URL") or "").rstrip("/")
     fail_url = f"{webapp_url}?payment_failed=1" if webapp_url else "/"
     if not payment_token:
+        payment_log("return_fail", reason="no_token")
         return RedirectResponse(url=fail_url)
     pending = await get_pending_payment(payment_token)
     if not pending:
+        payment_log("return_fail", payment_token=payment_token, reason="pending_not_found")
         return RedirectResponse(url=fail_url)
+    payment_log("return_pending_found", payment_token=payment_token, total=pending.get("total"))
     yookassa_id = (pending.get("yookassa_payment_id") or "").strip()
     if not yookassa_id:
+        payment_log("return_fail", payment_token=payment_token, reason="no_yookassa_id")
         return RedirectResponse(url=fail_url)
     payment = await _yookassa_get_payment(yookassa_id)
     if not payment or payment.get("status") != "succeeded":
+        payment_log("return_fail", payment_token=payment_token, yookassa_id=yookassa_id, yookassa_status=payment.get("status") if payment else None)
         return RedirectResponse(url=fail_url)
+    payment_log("return_yookassa_succeeded", payment_token=payment_token, yookassa_id=yookassa_id)
+    link_card_only = pending.get("link_card_only")
     items = json.loads(pending["items_json"])
     total = float(pending["total"])
     client = json.loads(pending["client_json"] or "{}")
     comment = (pending["comment"] or "").strip()
     telegram_id = int(pending.get("telegram_id") or 0)
+    site_user_id = pending.get("site_user_id")
+    if site_user_id:
+        pm = (payment.get("payment_method") or {})
+        pm_id = pm.get("id") if isinstance(pm, dict) else None
+        if pm_id:
+            try:
+                await update_site_user_saved_payment_method(int(site_user_id), pm_id)
+                payment_log("return_card_saved", payment_token=payment_token, site_user_id=int(site_user_id))
+            except Exception as e:
+                payment_log("return_card_save_error", payment_token=payment_token, error=str(e))
+    if link_card_only:
+        await delete_pending_payment(payment_token)
+        payment_log("return_link_card_ok", payment_token=payment_token)
+        success_url = f"{webapp_url}?card_linked=1" if webapp_url else "/?card_linked=1"
+        return RedirectResponse(url=success_url)
     if not ytimes_client:
+        payment_log("return_fail", payment_token=payment_token, reason="no_ytimes")
         return RedirectResponse(url=f"{webapp_url}?payment_error=no_ytimes" if webapp_url else fail_url)
     order_guid = str(uuid.uuid4())
     shop_guid = ytimes_client.default_shop_guid
@@ -427,7 +603,8 @@ async def api_payment_return(payment_token: str):
                 paid_value=total,
             ),
         )
-    except Exception:
+    except Exception as e:
+        payment_log("return_order_error", payment_token=payment_token, error=str(e))
         return RedirectResponse(url=f"{webapp_url}?payment_error=order" if webapp_url else fail_url)
     order_id_return = created.get("guid") or order_guid
     status = created.get("status") or "CREATED"
@@ -439,8 +616,53 @@ async def api_payment_return(payment_token: str):
         items_json=json.dumps(items),
     )
     await delete_pending_payment(payment_token)
+    payment_log("return_success", payment_token=payment_token, order_id=order_id_return, total=total)
     success_url = f"{webapp_url}?payment_success=1&order_id={order_id_return}" if webapp_url else "/"
     return RedirectResponse(url=success_url)
+
+
+@app.post("/api/payment/link-card")
+async def api_payment_link_card(request: Request, authorization: str | None = Header(None)):
+    """Привязать карту к аккаунту: платёж 1 ₽, после оплаты карта сохраняется для повторных заказов."""
+    auth_user = await _get_auth_user(authorization)
+    if not auth_user:
+        return JSONResponse({"success": False, "error": "Войдите в аккаунт"}, status_code=401)
+    if not _yookassa_auth():
+        return JSONResponse({"success": False, "error": "Оплата не настроена"}, status_code=503)
+    webapp_url = (os.getenv("WEBAPP_URL") or "").rstrip("/")
+    if not webapp_url:
+        return JSONResponse({"success": False, "error": "WEBAPP_URL не задан"}, status_code=500)
+    payment_token = uuid.uuid4().hex
+    client = {"name": auth_user.get("name") or auth_user.get("phone") or "Пользователь", "phone": auth_user.get("phone") or "", "email": ""}
+    await create_pending_payment(
+        payment_token=payment_token,
+        telegram_id=0,
+        items_json="[]",
+        total=1.0,
+        client_json=json.dumps(client),
+        comment="Привязка карты",
+        site_user_id=auth_user["id"],
+        link_card_only=True,
+    )
+    return_url = f"{webapp_url}/api/payment/return?payment_token={payment_token}"
+    yookassa_resp = await _yookassa_create_payment(
+        amount_rub=1.0,
+        description="Привязка карты к аккаунту (1 ₽)",
+        return_url=return_url,
+        metadata={"payment_token": payment_token},
+        save_payment_method=True,
+    )
+    if not yookassa_resp or yookassa_resp.get("status") not in ("pending", "waiting_for_capture"):
+        payment_log("link_card_yookassa_fail", site_user_id=auth_user["id"])
+        return JSONResponse({"success": False, "error": "Не удалось создать платёж"}, status_code=502)
+    yookassa_id = yookassa_resp.get("id")
+    confirmation = yookassa_resp.get("confirmation") or {}
+    confirmation_url = confirmation.get("confirmation_url")
+    if not yookassa_id or not confirmation_url:
+        return JSONResponse({"success": False, "error": "Ошибка платёжной системы"}, status_code=502)
+    await set_pending_yookassa_id(payment_token, yookassa_id)
+    payment_log("link_card_created", payment_token=payment_token, site_user_id=auth_user["id"])
+    return JSONResponse({"success": True, "confirmation_url": confirmation_url})
 
 
 @app.get("/api/payment/pending/{payment_token}")
@@ -475,14 +697,18 @@ async def api_order_from_payment(
     try:
         _require_bot_secret(x_bot_secret)
     except ValueError as e:
+        payment_log("order_from_payment_reject", reason="bad_secret")
         return JSONResponse({"success": False, "error": str(e)}, status_code=403)
     try:
         data = await request.json()
         payment_token = (data.get("payment_token") or "").strip()
         if not payment_token:
+            payment_log("order_from_payment_reject", reason="no_token")
             return JSONResponse({"success": False, "error": "Требуется payment_token"}, status_code=400)
+        payment_log("order_from_payment_start", payment_token=payment_token)
         pending = await get_pending_payment(payment_token)
         if not pending:
+            payment_log("order_from_payment_fail", payment_token=payment_token, reason="pending_not_found")
             return JSONResponse({"success": False, "error": "Платёж не найден или уже использован"}, status_code=404)
         items = json.loads(pending["items_json"])
         total = float(pending["total"])
@@ -490,6 +716,7 @@ async def api_order_from_payment(
         comment = (pending["comment"] or "").strip()
         telegram_id = int(data.get("telegram_id") or pending["telegram_id"] or 0)
         if not ytimes_client:
+            payment_log("order_from_payment_fail", payment_token=payment_token, reason="no_ytimes")
             return JSONResponse({"success": False, "error": "YTimes не настроен"}, status_code=500)
         order_guid = str(uuid.uuid4())
         shop_guid = ytimes_client.default_shop_guid
@@ -517,6 +744,7 @@ async def api_order_from_payment(
             items_json=json.dumps(items),
         )
         await delete_pending_payment(payment_token)
+        payment_log("order_from_payment_ok", payment_token=payment_token, order_id=order_id_return, total=total)
         return JSONResponse({
             "success": True,
             "order_id": order_id_return,
@@ -524,8 +752,10 @@ async def api_order_from_payment(
             "total": total,
         })
     except YTimesAPIError as e:
+        payment_log("order_from_payment_ytimes_error", error=str(e))
         return JSONResponse({"success": False, "error": str(e)}, status_code=502)
     except Exception as e:
+        payment_log("order_from_payment_error", error=str(e))
         import traceback
         traceback.print_exc()
         return JSONResponse({"success": False, "error": str(e)}, status_code=500)

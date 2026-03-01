@@ -6,6 +6,10 @@ interface CartModalProps {
   isOpen: boolean;
   items: CartItem[];
   total: number;
+  clientName: string;
+  clientPhone: string;
+  onClientNameChange: (value: string) => void;
+  onClientPhoneChange: (value: string) => void;
   comment: string;
   paymentMethod: PaymentMethod;
   onPaymentMethodChange: (method: PaymentMethod) => void;
@@ -19,6 +23,10 @@ export function CartModal({
   isOpen,
   items,
   total,
+  clientName,
+  clientPhone,
+  onClientNameChange,
+  onClientPhoneChange,
   comment,
   paymentMethod,
   onPaymentMethodChange,
@@ -75,6 +83,26 @@ export function CartModal({
           })}
           {items.length > 0 && (
             <>
+              <div className="cart-contacts">
+                <label htmlFor="cart-client-name">Имя *</label>
+                <input
+                  id="cart-client-name"
+                  type="text"
+                  className="cart-comment-input"
+                  placeholder="Ваше имя"
+                  value={clientName}
+                  onChange={(e) => onClientNameChange(e.target.value)}
+                />
+                <label htmlFor="cart-client-phone">Телефон *</label>
+                <input
+                  id="cart-client-phone"
+                  type="tel"
+                  className="cart-comment-input"
+                  placeholder="+7 (999) 123-45-67"
+                  value={clientPhone}
+                  onChange={(e) => onClientPhoneChange(e.target.value)}
+                />
+              </div>
               <div className="cart-payment-method">
                 <span className="cart-payment-label">Способ оплаты</span>
                 <div className="cart-payment-options">
